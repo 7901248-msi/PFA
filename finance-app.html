@@ -758,7 +758,6 @@
 
   const dashboardContent = document.querySelector('.content');
   const pageTitle        = document.querySelector('.page-title');
-  let pageFrame          = null;
 
   // Pending budget-spend updates, flushed once page-budgets.html is loaded.
   // Needed because transactions are usually added from Dashboard, while
@@ -789,36 +788,49 @@
     }
   }
 
+  // ── Page routing via iframe ──
+  // Each "page" iframe, once created, is kept alive and just hidden/shown.
+  // Destroying and recreating an iframe on every nav click would wipe out
+  // that page's in-memory JS state — which is exactly what was happening
+  // to the Budgets page (spend totals reset because a fresh iframe load
+  // re-runs page-budgets.html from its hardcoded starting data).
+  const pageFrames = {}; // { 'Budgets': <iframe element>, ... }
+
   function loadPage(name) {
     const src = PAGE_MAP[name];
     pageTitle.textContent = name;
 
-    // Toggle the inline Loans view (not an iframe page — see markup comment)
     const loansView = document.getElementById('loansView');
     loansView.style.display = (name === 'Loans') ? '' : 'none';
 
+    // Hide every existing page iframe first
+    Object.values(pageFrames).forEach(f => { f.style.display = 'none'; });
+
     if (!src) {
       dashboardContent.style.display = (name === 'Loans') ? 'none' : '';
-      if (pageFrame) { pageFrame.remove(); pageFrame = null; }
-      if (name !== 'Budgets') budgetFrameWindow = null;
       return;
     }
 
     dashboardContent.style.display = 'none';
-    if (pageFrame) pageFrame.remove();
 
-    pageFrame = document.createElement('iframe');
-    pageFrame.src = src;
-    Object.assign(pageFrame.style, {
+    if (pageFrames[name]) {
+      // Already created — just reveal it. State is preserved.
+      pageFrames[name].style.display = 'block';
+      return;
+    }
+
+    // First visit to this page — create and cache the iframe
+    const frame = document.createElement('iframe');
+    frame.src = src;
+    Object.assign(frame.style, {
       flex: '1', width: '100%', border: 'none',
       background: 'transparent', display: 'block',
       height: '100%',
     });
 
     if (name === 'Budgets') {
-      pageFrame.addEventListener('load', () => {
-        budgetFrameWindow = pageFrame.contentWindow;
-        // Flush any spend updates that happened while this page wasn't mounted
+      frame.addEventListener('load', () => {
+        budgetFrameWindow = frame.contentWindow;
         if (pendingBudgetSpend.length && budgetFrameWindow.BudgetPage) {
           pendingBudgetSpend.forEach(({ cat, amount }) => {
             budgetFrameWindow.BudgetPage.addSpend(cat, amount);
@@ -828,7 +840,8 @@
       });
     }
 
-    document.querySelector('.main').appendChild(pageFrame);
+    document.querySelector('.main').appendChild(frame);
+    pageFrames[name] = frame;
   }
 
   document.querySelectorAll('.nav-item').forEach(btn => {
