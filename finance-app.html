@@ -2,11 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Vault — Personal Finance</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
 <style>
+  /* ════════════════════════════════════════
+     MOBILE-ONLY BUILD
+     No desktop sidebar, no breakpoints, no
+     multi-column grids. Single column,
+     full-width, vertical scroll throughout.
+     ════════════════════════════════════════ */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
@@ -29,495 +35,231 @@
   }
 
   html, body {
-    height: 100%;
     background: var(--navy);
     color: var(--text);
     font-family: var(--sans);
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    width: 100%;
+    overflow-x: hidden;
   }
 
-  /* ── Layout ── */
-  .app { display: flex; height: 100vh; overflow: hidden; }
+  .app { display: block; min-height: 100vh; width: 100%; }
+  .main { width: 100%; }
 
-  /* ── Sidebar ── */
-  .sidebar {
-    width: 220px;
-    flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    padding: 24px 0;
-    gap: 0;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 0 20px 28px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  /* Security pulse — the signature element */
-  .pulse-ring {
-    width: 28px;
-    height: 28px;
-    position: relative;
-    flex-shrink: 0;
-  }
-  .pulse-ring::before, .pulse-ring::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 1.5px solid var(--sage);
-  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .pulse-ring { width: 26px; height: 26px; position: relative; flex-shrink: 0; }
   .pulse-ring::before {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    border: 1.5px solid var(--sage);
     animation: pulse-out 2.4s ease-out infinite;
     opacity: 0;
   }
   .pulse-ring .dot {
-    position: absolute;
-    inset: 6px;
-    border-radius: 50%;
-    background: var(--sage);
-    box-shadow: 0 0 6px var(--sage);
+    position: absolute; inset: 6px; border-radius: 50%;
+    background: var(--sage); box-shadow: 0 0 6px var(--sage);
   }
   @keyframes pulse-out {
     0%   { transform: scale(1); opacity: 0.7; }
     100% { transform: scale(2.2); opacity: 0; }
   }
-
-  .logo-text { font-family: var(--mono); font-size: 15px; font-weight: 500; letter-spacing: 0.08em; color: var(--text); }
+  .logo-text { font-family: var(--mono); font-size: 14px; font-weight: 500; letter-spacing: 0.08em; color: var(--text); }
   .logo-text span { color: var(--gold); }
 
-  .nav { display: flex; flex-direction: column; gap: 2px; padding: 20px 12px; flex: 1; }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
-    border-radius: 7px;
-    color: var(--subtle);
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-    font-size: 13.5px;
-    font-weight: 400;
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
-  }
-  .nav-item:hover { background: var(--slate); color: var(--text); }
-  .nav-item.active { background: rgba(201, 168, 76, 0.12); color: var(--gold); }
-  .nav-item svg { flex-shrink: 0; }
-
-  .nav-section-label {
-    font-size: 10px;
-    font-family: var(--mono);
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    padding: 14px 12px 6px;
-    text-transform: uppercase;
-  }
-
-  .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
   .security-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    display: flex; align-items: center; gap: 8px;
     background: rgba(74, 155, 142, 0.08);
     border: 1px solid rgba(74, 155, 142, 0.25);
-    border-radius: 7px;
-    padding: 8px 12px;
-    font-size: 11px;
-    color: var(--sage);
-    font-family: var(--mono);
+    border-radius: 7px; padding: 8px 12px;
+    font-size: 11px; color: var(--sage); font-family: var(--mono);
   }
   .security-badge .indicator {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--sage);
+    width: 6px; height: 6px; border-radius: 50%; background: var(--sage);
     animation: blink 3s ease-in-out infinite;
   }
-  @keyframes blink {
-    0%, 90%, 100% { opacity: 1; }
-    95% { opacity: 0.3; }
-  }
-
-  /* ── Main ── */
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  @keyframes blink { 0%, 90%, 100% { opacity: 1; } 95% { opacity: 0.3; } }
 
   .topbar {
-    height: 60px;
+    height: 54px;
     border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 28px;
-    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14px;
+    position: sticky; top: 0; z-index: 30;
+    background: var(--navy);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .page-title { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  .hamburger-btn {
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--slate); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
   }
 
-  .topbar-left { display: flex; align-items: center; gap: 16px; }
-  .page-title { font-size: 15px; font-weight: 600; color: var(--text); }
-  .last-sync { font-size: 11px; font-family: var(--mono); color: var(--muted); }
-
-  .topbar-right { display: flex; align-items: center; gap: 12px; }
-
   .btn {
-    display: inline-flex; align-items: center; gap: 7px;
-    padding: 7px 14px;
-    border-radius: 7px;
-    font-size: 13px;
-    font-family: var(--sans);
-    cursor: pointer;
-    transition: all 0.15s;
-    border: none;
-    font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 7px;
+    font-size: 12.5px; font-family: var(--sans); font-weight: 500;
+    cursor: pointer; border: none; transition: all 0.15s;
   }
   .btn-primary { background: var(--gold); color: var(--navy); }
   .btn-primary:hover { background: #d9b85c; }
   .btn-ghost { background: transparent; color: var(--subtle); border: 1px solid var(--border); }
-  .btn-ghost:hover { background: var(--slate); color: var(--text); }
 
   .avatar {
-    width: 32px; height: 32px;
-    border-radius: 50%;
+    width: 28px; height: 28px; border-radius: 50%;
     background: linear-gradient(135deg, var(--gold-dim), var(--gold));
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 600; color: var(--navy);
-    cursor: pointer;
+    font-size: 11px; font-weight: 600; color: var(--navy); cursor: pointer; flex-shrink: 0;
   }
 
-  /* ── Content ── */
-  .content { flex: 1; overflow-y: auto; padding: 28px; }
-  .content::-webkit-scrollbar { width: 4px; }
-  .content::-webkit-scrollbar-track { background: transparent; }
-  .content::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
-
-  /* ── Cards ── */
-  .card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
+  .content {
+    width: 100%;
+    padding: 16px 16px calc(80px + env(safe-area-inset-bottom, 0));
   }
-  .card-sm { padding: 16px 20px; }
 
-  /* ── Summary row ── */
-  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .card-sm { padding: 14px 16px; }
 
+  .summary-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
   .summary-card { position: relative; overflow: hidden; }
-  .summary-card::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-  }
-  .summary-card.net-worth::after  { background: var(--gold); }
-  .summary-card.income::after     { background: var(--sage); }
-  .summary-card.expenses::after   { background: var(--red); }
+  .summary-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .summary-card.net-worth::after { background: var(--gold); }
+  .summary-card.income::after    { background: var(--sage); }
+  .summary-card.expenses::after  { background: var(--red); }
 
-  .summary-label {
-    font-size: 11px;
-    font-family: var(--mono);
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
-  .summary-value {
-    font-family: var(--mono);
-    font-size: 26px;
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    margin-bottom: 6px;
-  }
+  .summary-label { font-size: 11px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+  .summary-value { font-family: var(--mono); font-size: 24px; font-weight: 500; letter-spacing: -0.02em; margin-bottom: 5px; }
   .summary-card.net-worth .summary-value { color: var(--gold); }
   .summary-card.income    .summary-value { color: var(--sage); }
   .summary-card.expenses  .summary-value { color: var(--red); }
-
-  .summary-delta {
-    font-size: 11.5px;
-    font-family: var(--mono);
-    display: flex; align-items: center; gap: 4px;
-  }
+  .summary-delta { font-size: 11.5px; font-family: var(--mono); display: flex; align-items: center; gap: 4px; }
   .delta-up   { color: var(--sage); }
   .delta-down { color: var(--red); }
 
-  /* ── 2-col row ── */
-  .two-col { display: grid; grid-template-columns: 1fr 340px; gap: 14px; margin-bottom: 20px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
 
-  /* ── Transactions ── */
-  .section-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 16px;
-  }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
   .section-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
   .section-link { font-size: 12px; color: var(--subtle); cursor: pointer; text-decoration: none; }
-  .section-link:hover { color: var(--gold); }
 
   .tx-list { display: flex; flex-direction: column; gap: 2px; }
-
-  .tx-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px;
-    border-radius: 7px;
-    transition: background 0.12s;
-    cursor: pointer;
-  }
-  .tx-row:hover { background: var(--slate); }
-
-  .tx-icon {
-    width: 34px; height: 34px;
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    font-size: 15px;
-  }
-
+  .tx-row { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 7px; cursor: pointer; }
+  .tx-row:active { background: var(--slate); }
+  .tx-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; }
   .tx-info { flex: 1; min-width: 0; }
   .tx-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tx-meta { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 1px; }
-
-  .tx-amount { font-family: var(--mono); font-size: 13.5px; font-weight: 500; text-align: right; flex-shrink: 0; }
+  .tx-meta { font-size: 10.5px; color: var(--muted); font-family: var(--mono); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tx-amount { font-family: var(--mono); font-size: 13px; font-weight: 500; text-align: right; flex-shrink: 0; }
   .tx-amount.credit { color: var(--sage); }
   .tx-amount.debit  { color: var(--text); }
 
-  /* ── Spending breakdown ── */
-  .breakdown-list { display: flex; flex-direction: column; gap: 14px; }
-
-  .breakdown-item { display: flex; flex-direction: column; gap: 5px; }
-  .breakdown-top { display: flex; justify-content: space-between; align-items: baseline; }
-  .breakdown-cat { font-size: 12.5px; color: var(--subtle); }
-  .breakdown-val { font-family: var(--mono); font-size: 12px; color: var(--text); }
-
-  .bar-track {
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .bar-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.6s ease;
-  }
-
-  /* ── Security panel ── */
-  .security-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-
-  .sec-item { display: flex; flex-direction: column; gap: 8px; }
-  .sec-item-header { display: flex; align-items: center; gap: 8px; }
-  .sec-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .sec-dot.ok     { background: var(--sage); box-shadow: 0 0 5px var(--sage); }
-  .sec-dot.warn   { background: var(--gold); box-shadow: 0 0 5px var(--gold); }
-  .sec-dot.alert  { background: var(--red);  box-shadow: 0 0 5px var(--red); }
-  .sec-label { font-size: 12px; font-weight: 500; color: var(--text); }
-  .sec-desc  { font-size: 11px; font-family: var(--mono); color: var(--muted); line-height: 1.55; }
-
-  /* ── Budget ring ── */
   .budget-ring-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-  .ring-chart {
-    position: relative;
-    width: 120px; height: 120px;
-  }
+  .ring-chart { position: relative; width: 110px; height: 110px; }
   .ring-chart svg { transform: rotate(-90deg); }
-  .ring-center {
-    position: absolute;
-    inset: 0;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-  }
-  .ring-pct { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--text); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-pct { font-family: var(--mono); font-size: 20px; font-weight: 500; color: var(--text); }
   .ring-sub { font-size: 10px; font-family: var(--mono); color: var(--muted); margin-top: 2px; }
-
-  .budget-details { width: 100%; display: flex; flex-direction: column; gap: 9px; }
+  .budget-details { width: 100%; display: flex; flex-direction: column; gap: 8px; }
   .budget-row { display: flex; align-items: center; justify-content: space-between; }
   .budget-key { font-size: 12px; color: var(--subtle); display: flex; align-items: center; gap: 6px; }
   .budget-swatch { width: 8px; height: 8px; border-radius: 2px; }
   .budget-amt { font-family: var(--mono); font-size: 12px; color: var(--text); }
 
-  /* ── Alert banner ── */
+  .breakdown-list { display: flex; flex-direction: column; gap: 12px; }
+  .breakdown-item { display: flex; flex-direction: column; gap: 5px; }
+  .breakdown-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .breakdown-cat { font-size: 12.5px; color: var(--subtle); }
+  .breakdown-val { font-family: var(--mono); font-size: 11.5px; color: var(--text); }
+  .bar-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+  .security-grid { display: flex; flex-direction: column; gap: 14px; }
+  .sec-item { display: flex; flex-direction: column; gap: 6px; }
+  .sec-item-header { display: flex; align-items: center; gap: 8px; }
+  .sec-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sec-dot.ok    { background: var(--sage); box-shadow: 0 0 5px var(--sage); }
+  .sec-dot.warn  { background: var(--gold); box-shadow: 0 0 5px var(--gold); }
+  .sec-dot.alert { background: var(--red);  box-shadow: 0 0 5px var(--red); }
+  .sec-label { font-size: 12.5px; font-weight: 500; color: var(--text); }
+  .sec-desc  { font-size: 11.5px; font-family: var(--mono); color: var(--muted); line-height: 1.55; }
+
   .alert-banner {
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: flex-start; gap: 10px;
     background: rgba(201, 168, 76, 0.07);
     border: 1px solid rgba(201, 168, 76, 0.3);
-    border-radius: var(--radius);
-    padding: 12px 16px;
-    margin-bottom: 20px;
+    border-radius: var(--radius); padding: 12px 14px; margin-bottom: 18px;
   }
-  .alert-icon { font-size: 16px; flex-shrink: 0; }
-  .alert-text { flex: 1; font-size: 12.5px; color: var(--gold); line-height: 1.5; }
-  .alert-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0; line-height: 1; }
-  .alert-close:hover { color: var(--text); }
+  .alert-icon { font-size: 15px; flex-shrink: 0; }
+  .alert-text { flex: 1; font-size: 12px; color: var(--gold); line-height: 1.5; }
+  .alert-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0; line-height: 1; flex-shrink: 0; }
 
-  /* ── 3-col row ── */
-  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-
-  /* ── Mini chart (sparkline) ── */
-  .sparkline { width: 100%; height: 50px; }
-
-  /* session info */
-  .session-info { display: flex; align-items: center; gap: 8px; }
-  .session-label { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-
-  /* Scrollbar for the whole page */
-  * { scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }
-
-  /* ════════════════════════════════════════
-     MOBILE NAVIGATION (hidden on desktop)
-     Bottom tab bar = 4 highest-frequency pages.
-     Hamburger drawer = everything else.
-     ════════════════════════════════════════ */
-  .bottom-nav, .hamburger-btn, .mobile-drawer, .mobile-drawer-backdrop {
-    display: none;
-  }
+  .accounts-stack { display: flex; flex-direction: column; gap: 12px; }
 
   .bottom-nav {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    height: 60px;
-    background: var(--panel);
-    border-top: 1px solid var(--border);
-    z-index: 80;
-    align-items: stretch;
-    justify-content: space-around;
+    position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
+    background: var(--panel); border-top: 1px solid var(--border);
+    z-index: 80; display: flex; justify-content: space-around;
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
   .bottom-nav-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    background: none;
-    border: none;
-    color: var(--subtle);
-    font-size: 10px;
-    font-family: var(--sans);
-    cursor: pointer;
-    transition: color 0.15s;
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; background: none; border: none; color: var(--subtle);
+    font-size: 10px; font-family: var(--sans); cursor: pointer;
   }
   .bottom-nav-item.active { color: var(--gold); }
-  .bottom-nav-item svg { flex-shrink: 0; }
-
-  .hamburger-btn {
-    width: 34px; height: 34px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--slate);
-    color: var(--text);
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
 
   .mobile-drawer-backdrop {
-    position: fixed; inset: 0;
-    background: rgba(5,12,20,0.7);
-    z-index: 90;
-    opacity: 0;
-    transition: opacity 0.2s;
+    position: fixed; inset: 0; background: rgba(5,12,20,0.7);
+    z-index: 90; opacity: 0; pointer-events: none; transition: opacity 0.2s;
   }
-  .mobile-drawer-backdrop.open { display: block; opacity: 1; }
+  .mobile-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
 
   .mobile-drawer {
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
-    width: 78%;
-    max-width: 300px;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    z-index: 95;
-    transform: translateX(-100%);
-    transition: transform 0.22s ease;
-    display: flex;
-    flex-direction: column;
-    padding: 20px 0;
+    position: fixed; top: 0; left: 0; bottom: 0; width: 78%; max-width: 300px;
+    background: var(--panel); border-right: 1px solid var(--border);
+    z-index: 95; transform: translateX(-100%); transition: transform 0.22s ease;
+    display: flex; flex-direction: column; padding: 20px 0;
   }
   .mobile-drawer.open { transform: translateX(0); }
-
-  .mobile-drawer-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 18px 20px;
-    border-bottom: 1px solid var(--border);
-  }
-  .mobile-drawer-close {
-    width: 28px; height: 28px; border-radius: 7px;
-    border: none; background: var(--slate); color: var(--subtle);
-    font-size: 15px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-  }
+  .mobile-drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 0 18px 20px; border-bottom: 1px solid var(--border); }
+  .mobile-drawer-close { width: 28px; height: 28px; border-radius: 7px; border: none; background: var(--slate); color: var(--subtle); font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .mobile-drawer-nav { padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
   .mobile-drawer-footer { padding: 16px 18px; border-top: 1px solid var(--border); margin-top: auto; }
 
-  /* ════════════════════════════════════════
-     MOBILE BREAKPOINT — phone-first restructure
-     ════════════════════════════════════════ */
-  @media (max-width: 640px) {
-    /* Hide desktop sidebar entirely on phone */
-    .sidebar { display: none; }
+  .drawer-nav-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    padding: 10px 12px; border-radius: 7px; color: var(--subtle);
+    cursor: pointer; font-size: 13.5px; border: none; background: none;
+  }
+  .drawer-nav-item:active { background: var(--slate); color: var(--text); }
+  .drawer-nav-item.active { background: rgba(201, 168, 76, 0.12); color: var(--gold); }
+  .drawer-nav-item svg { flex-shrink: 0; }
 
-    /* Reveal mobile nav elements */
-    .bottom-nav { display: flex; }
-    .hamburger-btn { display: flex; }
-    .mobile-drawer { display: flex; }
+  #loansEmptyState { text-align: center; padding: 40px 20px; color: var(--muted); }
 
-    .app { display: block; height: auto; min-height: 100vh; }
-    .main { height: auto; min-height: 100vh; }
-
-    /* Reserve space at the bottom so content isn't hidden behind the tab bar */
-    .content, #loansView.content {
-      padding: 16px 16px calc(76px + env(safe-area-inset-bottom, 0));
-    }
-
-    /* Topbar: simplify to title + hamburger + primary action */
-    .topbar { padding: 0 14px; height: 54px; }
-    .last-sync, .session-info, .btn-ghost { display: none; }
-    .topbar-left { gap: 10px; }
-    .page-title { font-size: 14px; }
-    .btn-primary { padding: 7px 10px; font-size: 12px; }
-    .avatar { width: 28px; height: 28px; font-size: 11px; }
-
-    /* All multi-column grids collapse to single column on phone */
-    .summary-grid,
-    .two-col,
-    .security-grid,
-    .three-col,
-    .budget-grid {
-      grid-template-columns: 1fr !important;
-    }
-
-    .summary-value { font-size: 22px; }
-
-    /* Modals: full-bleed on phone rather than centered floating cards */
-    .modal-backdrop { padding: 0; align-items: flex-end; }
-    .modal { max-width: 100%; border-radius: 16px 16px 0 0; max-height: 92vh; }
+  @keyframes tx-appear {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 </style>
 </head>
 <body>
 <div class="app">
 
-  <!-- ── Mobile drawer (hamburger menu) — secondary nav items ── -->
   <div class="mobile-drawer-backdrop" id="drawerBackdrop"></div>
   <aside class="mobile-drawer" id="mobileDrawer">
     <div class="mobile-drawer-header">
-      <div class="logo" style="padding:0;border:none">
+      <div class="logo">
         <div class="pulse-ring"><div class="dot"></div></div>
         <span class="logo-text">VAULT<span>.</span></span>
       </div>
       <button class="mobile-drawer-close" id="drawerClose">✕</button>
     </div>
-    <nav class="mobile-drawer-nav" id="drawerNav">
-      <!-- populated by JS, mirrors desktop sidebar's secondary items -->
-    </nav>
+    <nav class="mobile-drawer-nav" id="drawerNav"></nav>
     <div class="mobile-drawer-footer">
       <div class="security-badge">
         <div class="indicator"></div>
@@ -526,86 +268,28 @@
     </div>
   </aside>
 
-  <!-- ── Sidebar ── -->
-  <aside class="sidebar">
-    <div class="logo">
-      <div class="pulse-ring"><div class="dot"></div></div>
-      <span class="logo-text">VAULT<span>.</span></span>
-    </div>
-
-    <nav class="nav">
-      <span class="nav-section-label">Overview</span>
-      <button class="nav-item active">
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5" fill="currentColor" opacity=".8"/><rect x="13" y="3" width="8" height="8" rx="1.5" fill="currentColor"/><rect x="3" y="13" width="8" height="8" rx="1.5" fill="currentColor"/><rect x="13" y="13" width="8" height="8" rx="1.5" fill="currentColor" opacity=".5"/></svg>
-        <span>Dashboard</span>
-      </button>
-      <button class="nav-item">
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M3 9h18M7 3v2m10-2v2M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        <span>Transactions</span>
-      </button>
-      <button class="nav-item">
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93V18a1 1 0 0 0-2 0v1.93C7.06 19.44 4.56 16.94 4.07 14H6a1 1 0 0 0 0-2H4.07C4.56 9.06 7.06 6.56 10 6.07V8a1 1 0 0 0 2 0V6.07c2.94.49 5.44 2.99 5.93 5.93H16a1 1 0 0 0 0 2h1.93c-.49 2.94-2.99 5.44-5.93 5.93z" fill="currentColor" opacity=".7"/></svg>
-        <span>Budgets</span>
-      </button>
-
-      <span class="nav-section-label">Accounts</span>
-      <button class="nav-item">
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.8"/><circle cx="6.5" cy="15" r="1.5" fill="currentColor"/></svg>
-        <span>Accounts</span>
-      </button>
-      <button class="nav-item">
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 14l4-4 4 4 4-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span>Investments</span>
-      </button>
-      <button class="nav-item">
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9 12h6M12 9v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        <span>Loans</span>
-      </button>
-      <button class="nav-item">
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span>Security</span>
-      </button>
-    </nav>
-
-    <div class="sidebar-footer">
-      <div class="security-badge">
-        <div class="indicator"></div>
-        256-bit AES
-      </div>
-    </div>
-  </aside>
-
-  <!-- ── Main ── -->
   <div class="main">
     <header class="topbar">
       <div class="topbar-left">
         <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
-        <span class="page-title">Dashboard</span>
-        <span class="last-sync">synced 2m ago</span>
+        <span class="page-title" id="pageTitle">Dashboard</span>
       </div>
       <div class="topbar-right">
-        <div class="session-info">
-          <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z" fill="#4A9B8E" opacity=".8"/></svg>
-          <span class="session-label">Session secure · 14:23 left</span>
-        </div>
-        <button class="btn btn-ghost">Export</button>
-        <button class="btn btn-primary">+ Add Transaction</button>
+        <button class="btn btn-primary" id="btnAddTransaction">+ Add</button>
         <div class="avatar">JD</div>
       </div>
     </header>
 
-    <div class="content">
+    <div class="content" id="dashboardView">
 
-      <!-- Alert -->
-      <div class="alert-banner">
+      <div class="alert-banner" id="alertBanner">
         <span class="alert-icon">⚠</span>
-        <span class="alert-text">Unusual activity detected — a sign-in from a new device (Chrome / Berlin) 3 hours ago. <strong>Was this you?</strong> &nbsp;<a href="#" style="color:var(--gold);text-decoration:underline;">Review login</a></span>
-        <button class="alert-close">✕</button>
+        <span class="alert-text">New device sign-in (Chrome / Berlin) 3 hours ago. <strong>Was this you?</strong> <a href="#" style="color:var(--gold);text-decoration:underline;">Review</a></span>
+        <button class="alert-close" id="alertClose">✕</button>
       </div>
 
-      <!-- Summary row -->
       <div class="summary-grid">
         <div class="card summary-card net-worth">
           <div class="summary-label">Net Worth</div>
@@ -624,269 +308,134 @@
         </div>
       </div>
 
-      <!-- Transactions + Spending -->
-      <div class="two-col" style="align-items:start">
+      <div class="stack">
 
-        <!-- Transactions -->
         <div class="card">
           <div class="section-header">
             <span class="section-title">Recent Transactions</span>
             <a href="#" class="section-link">View all →</a>
           </div>
           <div class="tx-list">
-
             <div class="tx-row">
-              <div class="tx-icon" style="background:rgba(74,155,142,0.15)">🏥</div>
-              <div class="tx-info">
-                <div class="tx-name">Salary — Acme Corp</div>
-                <div class="tx-meta">Jun 25 · Chase Checking ···4821</div>
-              </div>
+              <div class="tx-icon" style="background:rgba(74,155,142,0.15)">💼</div>
+              <div class="tx-info"><div class="tx-name">Salary — Acme Corp</div><div class="tx-meta">Jun 25 · Chase Checking ···4821</div></div>
               <div class="tx-amount credit">+$6,500.00</div>
             </div>
-
             <div class="tx-row">
               <div class="tx-icon" style="background:rgba(58,80,104,0.4)">🛒</div>
-              <div class="tx-info">
-                <div class="tx-name">Whole Foods Market</div>
-                <div class="tx-meta">Jun 24 · Amex ···9210</div>
-              </div>
+              <div class="tx-info"><div class="tx-name">Whole Foods Market</div><div class="tx-meta">Jun 24 · Amex ···9210</div></div>
               <div class="tx-amount debit">−$114.30</div>
             </div>
-
             <div class="tx-row">
               <div class="tx-icon" style="background:rgba(58,80,104,0.4)">🎵</div>
-              <div class="tx-info">
-                <div class="tx-name">Spotify Premium</div>
-                <div class="tx-meta">Jun 23 · Chase Visa ···7734</div>
-              </div>
+              <div class="tx-info"><div class="tx-name">Spotify Premium</div><div class="tx-meta">Jun 23 · Chase Visa ···7734</div></div>
               <div class="tx-amount debit">−$10.99</div>
             </div>
-
             <div class="tx-row">
               <div class="tx-icon" style="background:rgba(201,168,76,0.12)">🏠</div>
-              <div class="tx-info">
-                <div class="tx-name">Rent — Riverside Apts</div>
-                <div class="tx-meta">Jun 01 · Chase Checking ···4821</div>
-              </div>
+              <div class="tx-info"><div class="tx-name">Rent — Riverside Apts</div><div class="tx-meta">Jun 01 · Chase Checking ···4821</div></div>
               <div class="tx-amount debit">−$1,850.00</div>
             </div>
-
             <div class="tx-row">
               <div class="tx-icon" style="background:rgba(58,80,104,0.4)">⛽</div>
-              <div class="tx-info">
-                <div class="tx-name">Shell Station</div>
-                <div class="tx-meta">Jun 22 · Chase Visa ···7734</div>
-              </div>
+              <div class="tx-info"><div class="tx-name">Shell Station</div><div class="tx-meta">Jun 22 · Chase Visa ···7734</div></div>
               <div class="tx-amount debit">−$62.10</div>
             </div>
-
             <div class="tx-row">
               <div class="tx-icon" style="background:rgba(74,155,142,0.15)">📈</div>
-              <div class="tx-info">
-                <div class="tx-name">Dividend — VTSAX</div>
-                <div class="tx-meta">Jun 20 · Fidelity Brokerage</div>
-              </div>
+              <div class="tx-info"><div class="tx-name">Dividend — VTSAX</div><div class="tx-meta">Jun 20 · Fidelity Brokerage</div></div>
               <div class="tx-amount credit">+$188.44</div>
             </div>
-
             <div class="tx-row">
               <div class="tx-icon" style="background:rgba(58,80,104,0.4)">🍕</div>
-              <div class="tx-info">
-                <div class="tx-name">Pizzeria Mozza</div>
-                <div class="tx-meta">Jun 19 · Amex ···9210</div>
-              </div>
+              <div class="tx-info"><div class="tx-name">Pizzeria Mozza</div><div class="tx-meta">Jun 19 · Amex ···9210</div></div>
               <div class="tx-amount debit">−$73.50</div>
             </div>
-
           </div>
         </div>
 
-        <!-- Right column: Budget ring + Breakdown -->
-        <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="card card-sm">
+          <div class="section-header" style="margin-bottom:18px">
+            <span class="section-title">Monthly Budget</span>
+            <span class="section-link">Edit</span>
+          </div>
+          <div class="budget-ring-wrap">
+            <div class="ring-chart">
+              <svg width="110" height="110" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#243447" stroke-width="10"/>
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#E05252" stroke-width="10" stroke-dasharray="314" stroke-dashoffset="130" stroke-linecap="round"/>
+              </svg>
+              <div class="ring-center"><span class="ring-pct">58%</span><span class="ring-sub">used</span></div>
+            </div>
+            <div class="budget-details">
+              <div class="budget-row"><span class="budget-key"><span class="budget-swatch" style="background:var(--sage)"></span>Budget</span><span class="budget-amt">$6,500.00</span></div>
+              <div class="budget-row"><span class="budget-key"><span class="budget-swatch" style="background:var(--red)"></span>Spent</span><span class="budget-amt">$3,812.44</span></div>
+              <div class="budget-row"><span class="budget-key"><span class="budget-swatch" style="background:var(--border)"></span>Remaining</span><span class="budget-amt" style="color:var(--sage)">$2,687.56</span></div>
+            </div>
+          </div>
+        </div>
 
-          <!-- Budget ring -->
+        <div class="card card-sm">
+          <div class="section-header" style="margin-bottom:16px"><span class="section-title">Spending by Category</span></div>
+          <div class="breakdown-list">
+            <div class="breakdown-item"><div class="breakdown-top"><span class="breakdown-cat">Housing</span><span class="breakdown-val">$1,850 · 48%</span></div><div class="bar-track"><div class="bar-fill" style="width:48%;background:var(--gold)"></div></div></div>
+            <div class="breakdown-item"><div class="breakdown-top"><span class="breakdown-cat">Food & Dining</span><span class="breakdown-val">$568 · 15%</span></div><div class="bar-track"><div class="bar-fill" style="width:15%;background:var(--sage)"></div></div></div>
+            <div class="breakdown-item"><div class="breakdown-top"><span class="breakdown-cat">Transport</span><span class="breakdown-val">$320 · 8%</span></div><div class="bar-track"><div class="bar-fill" style="width:8%;background:#5B8DD9"></div></div></div>
+            <div class="breakdown-item"><div class="breakdown-top"><span class="breakdown-cat">Subscriptions</span><span class="breakdown-val">$142 · 4%</span></div><div class="bar-track"><div class="bar-fill" style="width:4%;background:#9B6B9E"></div></div></div>
+            <div class="breakdown-item"><div class="breakdown-top"><span class="breakdown-cat">Other</span><span class="breakdown-val">$932 · 25%</span></div><div class="bar-track"><div class="bar-fill" style="width:25%;background:var(--muted)"></div></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-header" style="margin-bottom:16px">
+            <span class="section-title">Security Center</span>
+            <a href="#" class="section-link">Full report →</a>
+          </div>
+          <div class="security-grid">
+            <div class="sec-item"><div class="sec-item-header"><div class="sec-dot ok"></div><span class="sec-label">Two-Factor Auth</span></div><div class="sec-desc">Authenticator app enabled. Last verified Jun 25, 09:14.</div></div>
+            <div class="sec-item"><div class="sec-item-header"><div class="sec-dot ok"></div><span class="sec-label">End-to-End Encryption</span></div><div class="sec-desc">AES-256 at rest. TLS 1.3 in transit.</div></div>
+            <div class="sec-item"><div class="sec-item-header"><div class="sec-dot warn"></div><span class="sec-label">New Device Login</span></div><div class="sec-desc">Berlin · Chrome · 3h ago. Review if unrecognised.</div></div>
+            <div class="sec-item"><div class="sec-item-header"><div class="sec-dot ok"></div><span class="sec-label">Session Timeout</span></div><div class="sec-desc">Auto-lock after 20 min inactivity.</div></div>
+            <div class="sec-item"><div class="sec-item-header"><div class="sec-dot ok"></div><span class="sec-label">Password Strength</span></div><div class="sec-desc">Strong · Changed 42 days ago.</div></div>
+          </div>
+        </div>
+
+        <div class="accounts-stack">
           <div class="card card-sm">
-            <div class="section-header" style="margin-bottom:20px">
-              <span class="section-title">Monthly Budget</span>
-              <span class="section-link">Edit</span>
-            </div>
-            <div class="budget-ring-wrap">
-              <div class="ring-chart">
-                <svg width="120" height="120" viewBox="0 0 120 120">
-                  <circle cx="60" cy="60" r="50" fill="none" stroke="#243447" stroke-width="10"/>
-                  <!-- income ring -->
-                  <circle cx="60" cy="60" r="50" fill="none" stroke="#4A9B8E" stroke-width="10"
-                    stroke-dasharray="314" stroke-dashoffset="0" stroke-linecap="round" opacity=".25"/>
-                  <!-- spend ring: 58.7% of 314 = 184 -->
-                  <circle cx="60" cy="60" r="50" fill="none" stroke="#E05252" stroke-width="10"
-                    stroke-dasharray="314" stroke-dashoffset="130" stroke-linecap="round"/>
-                </svg>
-                <div class="ring-center">
-                  <span class="ring-pct">58%</span>
-                  <span class="ring-sub">used</span>
-                </div>
-              </div>
-              <div class="budget-details">
-                <div class="budget-row">
-                  <span class="budget-key"><span class="budget-swatch" style="background:var(--sage)"></span>Budget</span>
-                  <span class="budget-amt">$6,500.00</span>
-                </div>
-                <div class="budget-row">
-                  <span class="budget-key"><span class="budget-swatch" style="background:var(--red)"></span>Spent</span>
-                  <span class="budget-amt">$3,812.44</span>
-                </div>
-                <div class="budget-row">
-                  <span class="budget-key"><span class="budget-swatch" style="background:var(--border)"></span>Remaining</span>
-                  <span class="budget-amt" style="color:var(--sage)">$2,687.56</span>
-                </div>
-              </div>
-            </div>
+            <div class="summary-label" style="margin-bottom:10px">Checking — Chase ···4821</div>
+            <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--text);margin-bottom:3px">$12,440.20</div>
+            <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">Available balance</div>
           </div>
-
-          <!-- Breakdown -->
           <div class="card card-sm">
-            <div class="section-header" style="margin-bottom:16px">
-              <span class="section-title">Spending by Category</span>
-            </div>
-            <div class="breakdown-list">
-              <div class="breakdown-item">
-                <div class="breakdown-top">
-                  <span class="breakdown-cat">Housing</span>
-                  <span class="breakdown-val">$1,850 · 48%</span>
-                </div>
-                <div class="bar-track"><div class="bar-fill" style="width:48%;background:var(--gold)"></div></div>
-              </div>
-              <div class="breakdown-item">
-                <div class="breakdown-top">
-                  <span class="breakdown-cat">Food & Dining</span>
-                  <span class="breakdown-val">$568 · 15%</span>
-                </div>
-                <div class="bar-track"><div class="bar-fill" style="width:15%;background:var(--sage)"></div></div>
-              </div>
-              <div class="breakdown-item">
-                <div class="breakdown-top">
-                  <span class="breakdown-cat">Transport</span>
-                  <span class="breakdown-val">$320 · 8%</span>
-                </div>
-                <div class="bar-track"><div class="bar-fill" style="width:8%;background:#5B8DD9"></div></div>
-              </div>
-              <div class="breakdown-item">
-                <div class="breakdown-top">
-                  <span class="breakdown-cat">Subscriptions</span>
-                  <span class="breakdown-val">$142 · 4%</span>
-                </div>
-                <div class="bar-track"><div class="bar-fill" style="width:4%;background:#9B6B9E"></div></div>
-              </div>
-              <div class="breakdown-item">
-                <div class="breakdown-top">
-                  <span class="breakdown-cat">Other</span>
-                  <span class="breakdown-val">$932 · 25%</span>
-                </div>
-                <div class="bar-track"><div class="bar-fill" style="width:25%;background:var(--muted)"></div></div>
-              </div>
-            </div>
+            <div class="summary-label" style="margin-bottom:10px">Savings — Ally ···3309</div>
+            <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--sage);margin-bottom:3px">$31,200.00</div>
+            <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">4.85% APY · HYSA</div>
+          </div>
+          <div class="card card-sm">
+            <div class="summary-label" style="margin-bottom:10px">Investment — Fidelity</div>
+            <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--gold);margin-bottom:3px">$40,680.30</div>
+            <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">↑ $1,230 this month</div>
           </div>
         </div>
+
       </div>
+    </div><!-- /dashboardView -->
 
-      <!-- Security section -->
-      <div class="card" style="margin-bottom:20px">
-        <div class="section-header" style="margin-bottom:18px">
-          <span class="section-title">Security Center</span>
-          <a href="#" class="section-link">Full report →</a>
-        </div>
-        <div class="security-grid">
-          <div class="sec-item">
-            <div class="sec-item-header">
-              <div class="sec-dot ok"></div>
-              <span class="sec-label">Two-Factor Auth</span>
-            </div>
-            <div class="sec-desc">Authenticator app enabled. Last verified Jun 25 at 09:14.</div>
-          </div>
-          <div class="sec-item">
-            <div class="sec-item-header">
-              <div class="sec-dot ok"></div>
-              <span class="sec-label">End-to-End Encryption</span>
-            </div>
-            <div class="sec-desc">AES-256 at rest. TLS 1.3 in transit. Key rotation every 90 days.</div>
-          </div>
-          <div class="sec-item">
-            <div class="sec-item-header">
-              <div class="sec-dot warn"></div>
-              <span class="sec-label">New Device Login</span>
-            </div>
-            <div class="sec-desc">Berlin · Chrome 125 · 3h ago. Review and revoke if unrecognised.</div>
-          </div>
-          <div class="sec-item">
-            <div class="sec-item-header">
-              <div class="sec-dot ok"></div>
-              <span class="sec-label">Session Timeout</span>
-            </div>
-            <div class="sec-desc">Auto-lock after 20 min of inactivity. 14 min remaining this session.</div>
-          </div>
-          <div class="sec-item">
-            <div class="sec-item-header">
-              <div class="sec-dot ok"></div>
-              <span class="sec-label">Data Access Log</span>
-            </div>
-            <div class="sec-desc">6 read events today. All from trusted devices. No exports pending.</div>
-          </div>
-          <div class="sec-item">
-            <div class="sec-item-header">
-              <div class="sec-dot ok"></div>
-              <span class="sec-label">Password Strength</span>
-            </div>
-            <div class="sec-desc">Strong · 24 chars · Changed 42 days ago. Next reminder in 48 days.</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Accounts row -->
-      <div class="three-col">
-        <div class="card card-sm">
-          <div class="summary-label" style="margin-bottom:12px">Checking — Chase ···4821</div>
-          <div style="font-family:var(--mono);font-size:20px;font-weight:500;color:var(--text);margin-bottom:4px">$12,440.20</div>
-          <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">Available balance</div>
-        </div>
-        <div class="card card-sm">
-          <div class="summary-label" style="margin-bottom:12px">Savings — Ally ···3309</div>
-          <div style="font-family:var(--mono);font-size:20px;font-weight:500;color:var(--sage);margin-bottom:4px">$31,200.00</div>
-          <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">4.85% APY · HYSA</div>
-        </div>
-        <div class="card card-sm">
-          <div class="summary-label" style="margin-bottom:12px">Investment — Fidelity</div>
-          <div style="font-family:var(--mono);font-size:20px;font-weight:500;color:var(--gold);margin-bottom:4px">$40,680.30</div>
-          <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">↑ $1,230 this month</div>
-        </div>
-      </div>
-
-    </div><!-- /content -->
-
-    <!-- ════════════════════════════════════════
-         LOANS VIEW (minimal placeholder)
-         Not a full page build — just enough structure
-         so modal-loans.html has somewhere to send data.
-         Flag to revisit: deserves the same design pass
-         as Budgets (summary strip, payoff charts, etc).
-         ════════════════════════════════════════ -->
     <div class="content" id="loansView" style="display:none">
-      <div class="section-header" style="margin-bottom:18px">
+      <div class="section-header" style="margin-bottom:16px">
         <span class="section-title" style="font-size:15px">Loans &amp; Lending</span>
-        <button class="btn btn-primary" id="btnAddLoan">+ Add Loan</button>
+        <button class="btn btn-primary" id="btnAddLoan">+ Add</button>
       </div>
-
-      <div id="loansEmptyState" class="card" style="text-align:center;padding:48px 24px;color:var(--muted)">
-        <div style="font-size:28px;margin-bottom:10px">💳</div>
-        <div style="font-size:13.5px;color:var(--subtle);margin-bottom:4px">No loans tracked yet</div>
-        <div style="font-size:12px;font-family:var(--mono)">Add a loan you owe, or money you've lent to someone.</div>
+      <div id="loansEmptyState" class="card">
+        <div style="font-size:26px;margin-bottom:10px">💳</div>
+        <div style="font-size:13px;color:var(--subtle);margin-bottom:4px">No loans tracked yet</div>
+        <div style="font-size:11.5px;font-family:var(--mono)">Add a loan you owe, or money lent to someone.</div>
       </div>
-
       <div id="loansList" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
 
   </div><!-- /main -->
 
-  <!-- ── Bottom tab bar (mobile only) — 4 highest-frequency pages ── -->
   <nav class="bottom-nav" id="bottomNav">
     <button class="bottom-nav-item active" data-page="Dashboard">
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5" fill="currentColor" opacity=".8"/><rect x="13" y="3" width="8" height="8" rx="1.5" fill="currentColor"/><rect x="3" y="13" width="8" height="8" rx="1.5" fill="currentColor"/><rect x="13" y="13" width="8" height="8" rx="1.5" fill="currentColor" opacity=".5"/></svg>
@@ -908,36 +457,35 @@
 </div>
 
 <script>
-  // ── Alert close ──
-  document.querySelector('.alert-close').addEventListener('click', function() {
-    this.closest('.alert-banner').style.display = 'none';
+  document.getElementById('alertClose').addEventListener('click', function() {
+    document.getElementById('alertBanner').style.display = 'none';
   });
 
-  // ── Page routing via iframe ──
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.bar-fill').forEach(bar => {
+      const w = bar.style.width;
+      bar.style.width = '0';
+      setTimeout(() => { bar.style.width = w; }, 100);
+    });
+  });
+
   const PAGE_MAP = {
     'Dashboard':    null,
     'Transactions': null,
     'Budgets':      'page-budgets.html',
     'Accounts':     null,
     'Investments':  null,
-    'Loans':        null,   // rendered inline below — minimal placeholder, not a full page build yet
+    'Loans':        null,
     'Security':     null,
   };
 
-  const dashboardContent = document.querySelector('.content');
-  const pageTitle        = document.querySelector('.page-title');
+  const dashboardView = document.getElementById('dashboardView');
+  const loansView      = document.getElementById('loansView');
+  const pageTitleEl     = document.getElementById('pageTitle');
 
-  // Pending budget-spend updates, flushed once page-budgets.html is loaded.
-  // Needed because transactions are usually added from Dashboard, while
-  // the budget page lives in a separate iframe document that may not be
-  // mounted yet — there's no shared JS scope between the two.
-  let pendingBudgetSpend = [];   // [{ cat, amount }]
-  let budgetFrameWindow  = null; // set once page-budgets.html iframe has loaded
+  let pendingBudgetSpend = [];
+  let budgetFrameWindow  = null;
 
-  // Maps the lowercase category keys used by modal-add-transaction.html
-  // to the capitalized category names used in page-budgets.html.
-  // These two files were built independently — keep this map in sync if
-  // either category list changes.
   const CATEGORY_KEY_MAP = {
     housing: 'Housing', food: 'Food', dining: 'Dining', transport: 'Transport',
     health: 'Medical', subscriptions: 'Subscriptions', utilities: 'Utilities',
@@ -947,8 +495,7 @@
 
   function sendSpendToBudgetPage(cat, amount) {
     const mappedCat = CATEGORY_KEY_MAP[cat] ?? cat;
-    if (!mappedCat) return; // salary/investment categories don't map to a spend budget
-
+    if (!mappedCat) return;
     if (budgetFrameWindow && budgetFrameWindow.BudgetPage) {
       budgetFrameWindow.BudgetPage.addSpend(mappedCat, amount);
     } else {
@@ -956,76 +503,47 @@
     }
   }
 
-  // ── Page routing via iframe ──
-  // Each "page" iframe, once created, is kept alive and just shown/hidden.
-  //
-  // IMPORTANT: hiding via display:none is NOT safe here. Several mobile
-  // browsers (notably iOS Safari) treat display:none iframes as eligible
-  // for suspension — they pause or discard the iframe's JS execution
-  // context to save memory, then re-run its <script> from scratch when
-  // display is restored. That silently wipes in-memory state, which is
-  // exactly the "resets on second click" bug. Desktop Chrome doesn't do
-  // this, which is why it tested fine until mobile testing caught it.
-  //
-  // Fix: position hidden frames off-screen instead of display:none. The
-  // browser still considers them "visible" (just outside the viewport),
-  // so their JS context stays alive.
-  const pageFrames = {}; // { 'Budgets': <iframe element>, ... }
+  // Cached iframes per page. Hidden via off-screen positioning, NOT
+  // display:none — iOS Safari can suspend display:none iframes and
+  // silently reload them on re-show, wiping in-memory state. Confirmed
+  // bug earlier in this build; this is the fix that resolved it.
+  const pageFrames = {};
 
   function showFrame(frame) {
-    Object.assign(frame.style, {
-      position: 'static', left: '', top: '',
-      width: '100%', height: '100%',
-      pointerEvents: 'auto',
-    });
+    Object.assign(frame.style, { position: 'static', left: '', top: '', width: '100%', height: '100%', pointerEvents: 'auto' });
   }
   function hideFrame(frame) {
-    Object.assign(frame.style, {
-      position: 'absolute', left: '-9999px', top: '0',
-      width: '1px', height: '1px',
-      pointerEvents: 'none',
-    });
+    Object.assign(frame.style, { position: 'absolute', left: '-9999px', top: '0', width: '1px', height: '1px', pointerEvents: 'none' });
   }
 
   function loadPage(name) {
     const src = PAGE_MAP[name];
-    pageTitle.textContent = name;
+    pageTitleEl.textContent = name;
 
-    const loansView = document.getElementById('loansView');
     loansView.style.display = (name === 'Loans') ? '' : 'none';
-
-    // Move every existing page iframe off-screen first
     Object.values(pageFrames).forEach(hideFrame);
 
     if (!src) {
-      dashboardContent.style.display = (name === 'Loans') ? 'none' : '';
+      dashboardView.style.display = (name === 'Loans') ? 'none' : '';
       return;
     }
 
-    dashboardContent.style.display = 'none';
+    dashboardView.style.display = 'none';
 
     if (pageFrames[name]) {
-      // Already created — bring it back into view. State is preserved.
       showFrame(pageFrames[name]);
       return;
     }
 
-    // First visit to this page — create and cache the iframe
     const frame = document.createElement('iframe');
     frame.src = src;
-    Object.assign(frame.style, {
-      flex: '1', width: '100%', border: 'none',
-      background: 'transparent', display: 'block',
-      height: '100%',
-    });
+    Object.assign(frame.style, { width: '100%', border: 'none', background: 'transparent', display: 'block', minHeight: 'calc(100vh - 54px)' });
 
     if (name === 'Budgets') {
       frame.addEventListener('load', () => {
         budgetFrameWindow = frame.contentWindow;
         if (pendingBudgetSpend.length && budgetFrameWindow.BudgetPage) {
-          pendingBudgetSpend.forEach(({ cat, amount }) => {
-            budgetFrameWindow.BudgetPage.addSpend(cat, amount);
-          });
+          pendingBudgetSpend.forEach(({ cat, amount }) => budgetFrameWindow.BudgetPage.addSpend(cat, amount));
           pendingBudgetSpend = [];
         }
       });
@@ -1035,58 +553,27 @@
     pageFrames[name] = frame;
   }
 
-  // ── Unified navigation ──
-  // Three different nav surfaces now exist (desktop sidebar, mobile bottom
-  // bar, mobile drawer) and all three need to call loadPage() and agree on
-  // which item is "active". Routing them all through one function avoids
-  // three separate click handlers silently drifting out of sync.
   function navigateTo(name) {
-    document.querySelectorAll('.nav-item').forEach(b => {
-      b.classList.toggle('active', b.querySelector('span')?.textContent?.trim() === name);
-    });
-    document.querySelectorAll('.bottom-nav-item').forEach(b => {
-      b.classList.toggle('active', b.dataset.page === name);
-    });
-    document.querySelectorAll('.drawer-nav-item').forEach(b => {
-      b.classList.toggle('active', b.dataset.page === name);
-    });
+    document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('active', b.dataset.page === name));
+    document.querySelectorAll('.drawer-nav-item').forEach(b => b.classList.toggle('active', b.dataset.page === name));
     closeDrawer();
     loadPage(name);
   }
 
-  document.querySelectorAll('.nav-item').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const name = this.querySelector('span')?.textContent?.trim() || 'Dashboard';
-      navigateTo(name);
-    });
-  });
-
   document.querySelectorAll('.bottom-nav-item').forEach(btn => {
-    btn.addEventListener('click', function() {
-      navigateTo(this.dataset.page);
-    });
+    btn.addEventListener('click', () => navigateTo(btn.dataset.page));
   });
 
-  // ── Hamburger drawer ──
-  // Houses secondary nav items that don't fit in the 4-slot bottom bar:
-  // Accounts, Investments, Security. None of these have working pages yet
-  // (same gap as on desktop) — clicking them will route through loadPage()
-  // and currently fall back to showing the dashboard, since PAGE_MAP has
-  // no entry. That's consistent with current desktop behavior, not a new gap.
   const SECONDARY_NAV_ITEMS = [
-    { name: 'Accounts', icon: '<svg width="15" height="15" fill="none" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.8"/><circle cx="6.5" cy="15" r="1.5" fill="currentColor"/></svg>' },
+    { name: 'Accounts',    icon: '<svg width="15" height="15" fill="none" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.8"/><circle cx="6.5" cy="15" r="1.5" fill="currentColor"/></svg>' },
     { name: 'Investments', icon: '<svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 14l4-4 4 4 4-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
-    { name: 'Security', icon: '<svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+    { name: 'Security',    icon: '<svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
   ];
 
   const drawerNav = document.getElementById('drawerNav');
   drawerNav.innerHTML = SECONDARY_NAV_ITEMS.map(item => `
-    <button class="nav-item drawer-nav-item" data-page="${item.name}" style="width:100%">
-      ${item.icon}
-      <span>${item.name}</span>
-    </button>
+    <button class="drawer-nav-item" data-page="${item.name}">${item.icon}<span>${item.name}</span></button>
   `).join('');
-
   drawerNav.querySelectorAll('.drawer-nav-item').forEach(btn => {
     btn.addEventListener('click', () => navigateTo(btn.dataset.page));
   });
@@ -1096,45 +583,13 @@
   const hamburgerBtn   = document.getElementById('hamburgerBtn');
   const drawerClose    = document.getElementById('drawerClose');
 
-  function openDrawer() {
-    mobileDrawer.classList.add('open');
-    drawerBackdrop.classList.add('open');
-  }
-  function closeDrawer() {
-    mobileDrawer.classList.remove('open');
-    drawerBackdrop.classList.remove('open');
-  }
+  function openDrawer()  { mobileDrawer.classList.add('open');    drawerBackdrop.classList.add('open'); }
+  function closeDrawer() { mobileDrawer.classList.remove('open'); drawerBackdrop.classList.remove('open'); }
 
   hamburgerBtn.addEventListener('click', openDrawer);
   drawerClose.addEventListener('click', closeDrawer);
   drawerBackdrop.addEventListener('click', closeDrawer);
 
-  // ── Session countdown ──
-  let totalSeconds = 14 * 60 + 23;
-  const sessionEl = document.querySelector('.session-label');
-  setInterval(() => {
-    if (totalSeconds <= 0) return;
-    totalSeconds--;
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    sessionEl.textContent = `Session secure · ${m}:${s.toString().padStart(2,'0')} left`;
-  }, 1000);
-
-  // ── Animate bar fills on load ──
-  requestAnimationFrame(() => {
-    document.querySelectorAll('.bar-fill').forEach(bar => {
-      const w = bar.style.width;
-      bar.style.width = '0';
-      setTimeout(() => { bar.style.width = w; }, 100);
-    });
-  });
-
-  // ────────────────────────────────────────────────
-  // ADD TRANSACTION MODAL
-  // Loads modal-add-transaction.html into an iframe
-  // injected over the app. Each modal lives in its
-  // own file — easy to debug independently.
-  // ────────────────────────────────────────────────
   let modalFrame = null;
 
   function openTransactionModal() {
@@ -1143,45 +598,24 @@
     const frame = document.createElement('iframe');
     frame.src = 'modal-add-transaction.html';
     frame.id  = 'transactionModalFrame';
-    Object.assign(frame.style, {
-      position:   'fixed',
-      inset:      '0',
-      width:      '100%',
-      height:     '100%',
-      border:     'none',
-      zIndex:     '200',
-      background: 'transparent',
-    });
+    Object.assign(frame.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', border: 'none', zIndex: '200', background: 'transparent' });
     frame.allow = 'clipboard-write';
 
     frame.addEventListener('load', () => {
       const win = frame.contentWindow;
-
-      // Receive saved transaction from modal
       win.TransactionModal.onSave = (tx) => {
-        console.log('[Main App] Transaction received:', tx);
         addTransactionToList(tx);
-
-        // Only expenses reduce budget headroom — income/transfers don't.
-        if (tx.type === 'expense' && tx.category) {
-          sendSpendToBudgetPage(tx.category, tx.amount);
-        }
+        if (tx.type === 'expense' && tx.category) sendSpendToBudgetPage(tx.category, tx.amount);
       };
-
-      // Remove iframe when modal closes
-      win.TransactionModal.onClose = () => {
-        setTimeout(() => { frame.remove(); modalFrame = null; }, 200);
-      };
+      win.TransactionModal.onClose = () => { setTimeout(() => { frame.remove(); modalFrame = null; }, 200); };
     });
 
     document.body.appendChild(frame);
     modalFrame = frame;
   }
 
-  // Wire up the "+ Add Transaction" button
-  document.querySelector('.btn-primary').addEventListener('click', openTransactionModal);
+  document.getElementById('btnAddTransaction').addEventListener('click', openTransactionModal);
 
-  // ── Add new transaction row to the live list ──
   function addTransactionToList(tx) {
     const list = document.querySelector('.tx-list');
     if (!list) return;
@@ -1194,31 +628,19 @@
     const emoji = categoryEmoji[tx.category] || '💳';
     const isCredit = tx.type === 'income';
     const isTransfer = tx.type === 'transfer';
-    const sign   = isCredit ? '+' : isTransfer ? '⇄' : '−';
-    const cls    = isCredit ? 'credit' : 'debit';
-    const iconBg = isCredit
-      ? 'rgba(74,155,142,0.15)'
-      : isTransfer
-        ? 'rgba(201,168,76,0.12)'
-        : 'rgba(58,80,104,0.4)';
-
-    const acctLabel = tx.type === 'transfer'
-      ? `${tx.fromAccount} → ${tx.toAccount}`
-      : tx.account || 'Unknown account';
+    const sign = isCredit ? '+' : isTransfer ? '⇄' : '−';
+    const cls  = isCredit ? 'credit' : 'debit';
+    const iconBg = isCredit ? 'rgba(74,155,142,0.15)' : isTransfer ? 'rgba(201,168,76,0.12)' : 'rgba(58,80,104,0.4)';
+    const acctLabel = tx.type === 'transfer' ? `${tx.fromAccount} → ${tx.toAccount}` : tx.account || 'Unknown account';
 
     const row = document.createElement('div');
     row.className = 'tx-row';
     row.style.animation = 'tx-appear 0.25s ease';
     row.innerHTML = `
       <div class="tx-icon" style="background:${iconBg}">${emoji}</div>
-      <div class="tx-info">
-        <div class="tx-name">${escHtml(tx.description)}</div>
-        <div class="tx-meta">${tx.date} · ${escHtml(acctLabel)}</div>
-      </div>
+      <div class="tx-info"><div class="tx-name">${escHtml(tx.description)}</div><div class="tx-meta">${tx.date} · ${escHtml(acctLabel)}</div></div>
       <div class="tx-amount ${cls}">${sign}$${tx.amount.toFixed(2)}</div>
     `;
-
-    // Prepend (newest first)
     list.prepend(row);
   }
 
@@ -1226,13 +648,7 @@
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // ────────────────────────────────────────────────
-  // LOANS MODAL
-  // Same iframe-injection pattern as the transaction
-  // modal — isolated file, public API, easy to debug
-  // independently of the main app.
-  // ────────────────────────────────────────────────
-  let loans = [];          // in-memory store — lost on refresh, same caveat as transactions
+  let loans = [];
   let loanModalFrame = null;
 
   function openLoanModal() {
@@ -1241,28 +657,12 @@
     const frame = document.createElement('iframe');
     frame.src = 'modal-loans.html';
     frame.id  = 'loanModalFrame';
-    Object.assign(frame.style, {
-      position:   'fixed',
-      inset:      '0',
-      width:      '100%',
-      height:     '100%',
-      border:     'none',
-      zIndex:     '200',
-      background: 'transparent',
-    });
+    Object.assign(frame.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', border: 'none', zIndex: '200', background: 'transparent' });
 
     frame.addEventListener('load', () => {
       const win = frame.contentWindow;
-
-      win.LoanModal.onSave = (loan) => {
-        console.log('[Main App] Loan received:', loan);
-        loans.push(loan);
-        renderLoansList();
-      };
-
-      win.LoanModal.onClose = () => {
-        setTimeout(() => { frame.remove(); loanModalFrame = null; }, 200);
-      };
+      win.LoanModal.onSave = (loan) => { loans.push(loan); renderLoansList(); };
+      win.LoanModal.onClose = () => { setTimeout(() => { frame.remove(); loanModalFrame = null; }, 200); };
     });
 
     document.body.appendChild(frame);
@@ -1288,37 +688,22 @@
       const owe = loan.direction === 'owe';
       const emoji = owe ? (typeEmoji[loan.loanType] || '💳') : '🤝';
       const accent = owe ? 'var(--red)' : 'var(--sage)';
-      const pct = loan.principal > 0
-        ? Math.round(((loan.principal - loan.balance) / loan.principal) * 100)
-        : 0;
+      const pct = loan.principal > 0 ? Math.round(((loan.principal - loan.balance) / loan.principal) * 100) : 0;
 
       return `
         <div class="card card-sm" style="display:flex;align-items:center;gap:14px">
           <div class="tx-icon" style="background:${owe ? 'rgba(224,82,82,0.12)' : 'rgba(74,155,142,0.12)'};flex-shrink:0">${emoji}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:13.5px;font-weight:600;color:var(--text)">${escHtml(loan.name)}</div>
-            <div style="font-size:11px;font-family:var(--mono);color:var(--muted);margin-top:2px">
-              ${owe ? 'Owed to' : 'Owed by'} ${escHtml(loan.party)}${loan.rate ? ` · ${loan.rate}% APR` : ''}
-            </div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">${escHtml(loan.name)}</div>
+            <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted);margin-top:2px">${owe ? 'Owed to' : 'Owed by'} ${escHtml(loan.party)}${loan.rate ? ` · ${loan.rate}% APR` : ''}</div>
           </div>
           <div style="text-align:right">
-            <div style="font-family:var(--mono);font-size:16px;font-weight:500;color:${accent}">
-              $${loan.balance.toFixed(2)}
-            </div>
-            <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">
-              ${owe ? pct + '% paid off' : 'outstanding'}
-            </div>
+            <div style="font-family:var(--mono);font-size:15px;font-weight:500;color:${accent}">$${loan.balance.toFixed(2)}</div>
+            <div style="font-size:10px;font-family:var(--mono);color:var(--muted)">${owe ? pct + '% paid off' : 'outstanding'}</div>
           </div>
         </div>`;
     }).join('');
   }
 </script>
-
-<style>
-  @keyframes tx-appear {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-</style>
 </body>
 </html>
