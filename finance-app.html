@@ -81,7 +81,7 @@
 <script>
   const PAGE_MAP = {
     'Dashboard':    'page-dashboard.html',
-    'Transactions': null,
+    'Transactions': 'page-transactions.html',
     'Budgets':      'page-budgets.html',
     'Accounts':     null,
     'Investments':  null,
@@ -93,9 +93,11 @@
   const pageTitleEl = document.getElementById('pageTitle');
 
   let pendingBudgetSpend  = [];
-  let pendingTransactions = [];
-  let budgetFrameWindow    = null;
-  let dashboardFrameWindow = null;
+  let pendingTransactions = [];        // for Dashboard
+  let pendingLedgerEntries = [];       // for the Transactions ledger page
+  let budgetFrameWindow      = null;
+  let dashboardFrameWindow   = null;
+  let transactionsFrameWindow = null;
 
   const CATEGORY_KEY_MAP = {
     housing: 'Housing', food: 'Food', dining: 'Dining', transport: 'Transport',
@@ -119,6 +121,14 @@
       dashboardFrameWindow.DashboardPage.addTransaction(tx);
     } else {
       pendingTransactions.push(tx);
+    }
+  }
+
+  function sendTransactionToLedger(tx) {
+    if (transactionsFrameWindow && transactionsFrameWindow.TransactionsPage) {
+      transactionsFrameWindow.TransactionsPage.addTransaction(tx);
+    } else {
+      pendingLedgerEntries.push(tx);
     }
   }
 
@@ -165,6 +175,16 @@
         if (pendingTransactions.length && dashboardFrameWindow.DashboardPage) {
           pendingTransactions.forEach(tx => dashboardFrameWindow.DashboardPage.addTransaction(tx));
           pendingTransactions = [];
+        }
+      });
+    }
+
+    if (name === 'Transactions') {
+      frame.addEventListener('load', () => {
+        transactionsFrameWindow = frame.contentWindow;
+        if (pendingLedgerEntries.length && transactionsFrameWindow.TransactionsPage) {
+          pendingLedgerEntries.forEach(tx => transactionsFrameWindow.TransactionsPage.addTransaction(tx));
+          pendingLedgerEntries = [];
         }
       });
     }
@@ -225,6 +245,7 @@
       const win = frame.contentWindow;
       win.TransactionModal.onSave = (tx) => {
         sendTransactionToDashboard(tx);
+        sendTransactionToLedger(tx);
         if (tx.type === 'expense' && tx.category) sendSpendToBudgetPage(tx.category, tx.amount);
       };
       win.TransactionModal.onClose = () => { setTimeout(() => { frame.remove(); modalFrame = null; }, 200); };

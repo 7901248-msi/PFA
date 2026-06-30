@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Vault — Transactions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body { min-height: 100vh; }
+
+  /* ── Search bar ── */
+  .search-wrap { position: relative; margin-bottom: 14px; }
+  .search-icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    padding: 10px 12px 10px 36px;
+    font-size: 13.5px;
+    font-family: var(--sans);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-input:focus { border-color: var(--gold); }
+  .search-input::placeholder { color: var(--muted); }
+  .search-clear {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 14px; padding: 4px; display: none;
+  }
+  .search-clear.visible { display: block; }
+
+  /* ── Filter chips ── */
+  .filter-row {
+    display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px;
+    scrollbar-width: none;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-chip {
+    flex-shrink: 0;
+    padding: 7px 13px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--panel);
+    color: var(--subtle);
+    font-size: 12px;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .filter-chip.active { border-color: var(--gold); background: rgba(201,168,76,0.12); color: var(--gold); }
+  .filter-chip:active { transform: scale(0.97); }
+
+  .filter-divider {
+    width: 1px; flex-shrink: 0; background: var(--border); margin: 4px 2px;
+  }
+
+  /* ── Date group headers ── */
+  .date-group { margin-bottom: 4px; }
+  .date-group-label {
+    font-size: 11px;
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 14px 4px 8px;
+  }
+  .date-group:first-child .date-group-label { padding-top: 0; }
+
+  /* ── Result count / empty state ── */
+  .result-meta { font-size: 11.5px; font-family: var(--mono); color: var(--muted); margin-bottom: 12px; }
+  .empty-state {
+    text-align: center; padding: 48px 20px; color: var(--muted);
+  }
+  .empty-state .ic { font-size: 26px; margin-bottom: 10px; }
+  .empty-state .msg { font-size: 13px; color: var(--subtle); }
+</style>
+</head>
+<body>
+
+<div class="content" id="transactionsContent">
+
+  <div class="search-wrap">
+    <svg class="search-icon" width="15" height="15" fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input type="text" class="search-input" id="searchInput" placeholder="Search transactions..." autocomplete="off" />
+    <button class="search-clear" id="searchClear">✕</button>
+  </div>
+
+  <div class="filter-row" id="typeFilterRow">
+    <button class="filter-chip active" data-type="all">All</button>
+    <button class="filter-chip" data-type="expense">Expenses</button>
+    <button class="filter-chip" data-type="income">Income</button>
+    <button class="filter-chip" data-type="transfer">Transfers</button>
+  </div>
+
+  <div class="filter-row" id="categoryFilterRow">
+    <button class="filter-chip active" data-cat="all">All categories</button>
+    <button class="filter-chip" data-cat="housing">🏠 Housing</button>
+    <button class="filter-chip" data-cat="food">🛒 Food</button>
+    <button class="filter-chip" data-cat="dining">🍕 Dining</button>
+    <button class="filter-chip" data-cat="transport">🚗 Transport</button>
+    <button class="filter-chip" data-cat="subscriptions">🎵 Subscriptions</button>
+    <button class="filter-chip" data-cat="salary">💼 Salary</button>
+    <button class="filter-chip" data-cat="investment">📈 Investment</button>
+  </div>
+
+  <div class="result-meta" id="resultMeta"></div>
+
+  <div id="groupedList"></div>
+
+  <div class="empty-state" id="emptyState" style="display:none">
+    <div class="ic">🔍</div>
+    <div class="msg">No transactions match your filters</div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+
+  /* ── Seed data — same 7 demo entries shown on Dashboard, kept in sync
+     so the two pages agree on starting state. New transactions are
+     pushed in via the public API below as they're saved elsewhere. ── */
+  let transactions = [
+    { id: 's1', type: 'income',  category: 'salary',        description: 'Salary — Acme Corp',     date: '2026-06-25', account: 'Chase Checking ···4821', amount: 6500.00 },
+    { id: 's2', type: 'expense', category: 'food',          description: 'Whole Foods Market',      date: '2026-06-24', account: 'Amex ···9210',           amount: 114.30 },
+    { id: 's3', type: 'expense', category: 'subscriptions', description: 'Spotify Premium',         date: '2026-06-23', account: 'Chase Visa ···7734',     amount: 10.99 },
+    { id: 's4', type: 'expense', category: 'housing',       description: 'Rent — Riverside Apts',   date: '2026-06-01', account: 'Chase Checking ···4821', amount: 1850.00 },
+    { id: 's5', type: 'expense', category: 'transport',     description: 'Shell Station',           date: '2026-06-22', account: 'Chase Visa ···7734',     amount: 62.10 },
+    { id: 's6', type: 'income',  category: 'investment',    description: 'Dividend — VTSAX',        date: '2026-06-20', account: 'Fidelity Brokerage',     amount: 188.44 },
+    { id: 's7', type: 'expense', category: 'dining',        description: 'Pizzeria Mozza',          date: '2026-06-19', account: 'Amex ···9210',           amount: 73.50 },
+  ];
+
+  const categoryEmoji = {
+    housing: '🏠', food: '🛒', dining: '🍕', transport: '🚗',
+    health: '💊', subscriptions: '🎵', salary: '💼', investment: '📈',
+    utilities: '⚡', shopping: '🛍️', travel: '✈️', other: '•••',
+  };
+
+  let activeType = 'all';
+  let activeCategory = 'all';
+  let searchQuery = '';
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Date grouping: Today / Yesterday / This Week / Earlier ──
+     "Today" is simulated as 2026-06-26 to match the demo data's most
+     recent entry, consistent with how the rest of this app simulates
+     "now" (see page-budgets.html's daysLeft() function). */
+  function getDateGroup(dateStr) {
+    const today = new Date(2026, 5, 26);
+    const txDate = new Date(dateStr + 'T00:00:00');
+    const diffDays = Math.round((today - txDate) / 86400000);
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays > 1 && diffDays <= 7) return 'This Week';
+    return 'Earlier';
+  }
+
+  const GROUP_ORDER = ['Today', 'Yesterday', 'This Week', 'Earlier'];
+
+  function applyFilters() {
+    return transactions.filter(tx => {
+      if (activeType !== 'all' && tx.type !== activeType) return false;
+      if (activeCategory !== 'all' && tx.category !== activeCategory) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const haystack = `${tx.description} ${tx.account} ${tx.category}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function render() {
+    const filtered = applyFilters();
+    const listEl  = document.getElementById('groupedList');
+    const emptyEl = document.getElementById('emptyState');
+    const metaEl  = document.getElementById('resultMeta');
+
+    metaEl.textContent = `${filtered.length} transaction${filtered.length !== 1 ? 's' : ''}`;
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = '';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    // Sort newest first, then group by date bucket
+    const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
+    const groups = {};
+    sorted.forEach(tx => {
+      const g = getDateGroup(tx.date);
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(tx);
+    });
+
+    listEl.innerHTML = GROUP_ORDER.filter(g => groups[g]).map(groupName => {
+      const rows = groups[groupName].map(tx => {
+        const emoji = categoryEmoji[tx.category] || '💳';
+        const isCredit = tx.type === 'income';
+        const isTransfer = tx.type === 'transfer';
+        const sign = isCredit ? '+' : isTransfer ? '⇄' : '−';
+        const cls  = isCredit ? 'credit' : 'debit';
+        const iconBg = isCredit ? 'rgba(74,155,142,0.15)' : isTransfer ? 'rgba(201,168,76,0.12)' : 'rgba(58,80,104,0.4)';
+
+        return `
+          <div class="tx-row">
+            <div class="tx-icon" style="background:${iconBg}">${emoji}</div>
+            <div class="tx-info">
+              <div class="tx-name">${escHtml(tx.description)}</div>
+              <div class="tx-meta">${tx.date} · ${escHtml(tx.account || 'Unknown account')}</div>
+            </div>
+            <div class="tx-amount ${cls}">${sign}$${tx.amount.toFixed(2)}</div>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="date-group">
+          <div class="date-group-label">${groupName}</div>
+          <div class="card" style="padding:6px"><div class="tx-list">${rows}</div></div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ── Search ── */
+  const searchInput = document.getElementById('searchInput');
+  const searchClear  = document.getElementById('searchClear');
+
+  searchInput.addEventListener('input', () => {
+    searchQuery = searchInput.value.trim();
+    searchClear.classList.toggle('visible', searchQuery.length > 0);
+    render();
+  });
+  searchClear.addEventListener('click', () => {
+    searchInput.value = '';
+    searchQuery = '';
+    searchClear.classList.remove('visible');
+    render();
+  });
+
+  /* ── Type filter chips ── */
+  document.getElementById('typeFilterRow').addEventListener('click', e => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip) return;
+    document.querySelectorAll('#typeFilterRow .filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeType = chip.dataset.type;
+    render();
+  });
+
+  /* ── Category filter chips ── */
+  document.getElementById('categoryFilterRow').addEventListener('click', e => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip) return;
+    document.querySelectorAll('#categoryFilterRow .filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeCategory = chip.dataset.cat;
+    render();
+  });
+
+  /* ── Public API — same pattern as DashboardPage / BudgetPage ──
+     The shell calls this after a transaction is saved, so this page's
+     ledger and the dashboard's recent list stay in sync without either
+     one owning the other's DOM directly. */
+  window.TransactionsPage = {
+    addTransaction(tx) {
+      transactions.unshift({
+        id: tx.id || ('tx-' + Date.now()),
+        type: tx.type,
+        category: tx.category,
+        description: tx.description,
+        date: tx.date,
+        account: tx.type === 'transfer' ? `${tx.fromAccount} → ${tx.toAccount}` : tx.account,
+        amount: tx.amount,
+      });
+      render();
+    },
+  };
+
+  render();
+
+})();
+</script>
+</body>
+</html>
