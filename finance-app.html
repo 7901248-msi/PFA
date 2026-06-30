@@ -789,12 +789,35 @@
   }
 
   // ── Page routing via iframe ──
-  // Each "page" iframe, once created, is kept alive and just hidden/shown.
-  // Destroying and recreating an iframe on every nav click would wipe out
-  // that page's in-memory JS state — which is exactly what was happening
-  // to the Budgets page (spend totals reset because a fresh iframe load
-  // re-runs page-budgets.html from its hardcoded starting data).
+  // Each "page" iframe, once created, is kept alive and just shown/hidden.
+  //
+  // IMPORTANT: hiding via display:none is NOT safe here. Several mobile
+  // browsers (notably iOS Safari) treat display:none iframes as eligible
+  // for suspension — they pause or discard the iframe's JS execution
+  // context to save memory, then re-run its <script> from scratch when
+  // display is restored. That silently wipes in-memory state, which is
+  // exactly the "resets on second click" bug. Desktop Chrome doesn't do
+  // this, which is why it tested fine until mobile testing caught it.
+  //
+  // Fix: position hidden frames off-screen instead of display:none. The
+  // browser still considers them "visible" (just outside the viewport),
+  // so their JS context stays alive.
   const pageFrames = {}; // { 'Budgets': <iframe element>, ... }
+
+  function showFrame(frame) {
+    Object.assign(frame.style, {
+      position: 'static', left: '', top: '',
+      width: '100%', height: '100%',
+      pointerEvents: 'auto',
+    });
+  }
+  function hideFrame(frame) {
+    Object.assign(frame.style, {
+      position: 'absolute', left: '-9999px', top: '0',
+      width: '1px', height: '1px',
+      pointerEvents: 'none',
+    });
+  }
 
   function loadPage(name) {
     const src = PAGE_MAP[name];
@@ -803,8 +826,8 @@
     const loansView = document.getElementById('loansView');
     loansView.style.display = (name === 'Loans') ? '' : 'none';
 
-    // Hide every existing page iframe first
-    Object.values(pageFrames).forEach(f => { f.style.display = 'none'; });
+    // Move every existing page iframe off-screen first
+    Object.values(pageFrames).forEach(hideFrame);
 
     if (!src) {
       dashboardContent.style.display = (name === 'Loans') ? 'none' : '';
@@ -814,8 +837,8 @@
     dashboardContent.style.display = 'none';
 
     if (pageFrames[name]) {
-      // Already created — just reveal it. State is preserved.
-      pageFrames[name].style.display = 'block';
+      // Already created — bring it back into view. State is preserved.
+      showFrame(pageFrames[name]);
       return;
     }
 
