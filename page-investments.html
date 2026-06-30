@@ -100,17 +100,32 @@
   .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .field-hint { font-size: 10.5px; font-family: var(--mono); color: var(--muted); }
 
-  /* ── Auto-calculated field indicator ──
-     Whichever of Qty/Rate/Total the user did NOT type into gets this
-     style once the other two produce a computed value — a quiet visual
-     cue that this number was derived, not entered, without being so
-     loud it looks like an error state. */
-  .field.computed input {
-    border-color: rgba(201,168,76,0.4);
-    color: var(--gold);
+  /* ── Calculation mode toggle ──
+     Exactly two modes: "I know Quantity" (Qty × Rate = Total) or
+     "I know Total Spent" (Total ÷ Rate = Qty). Whichever is NOT the
+     known mode becomes a locked, read-only, computed field — never a
+     live input — so there's no ambiguity about which two fields feed
+     the calculation. */
+  .calc-mode-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   }
-  .field.computed label::after {
-    content: ' · calculated';
+  .calc-mode-label { font-size: 11px; color: var(--subtle); flex-shrink: 0; }
+  .calc-mode-btn {
+    padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--border);
+    background: transparent; color: var(--subtle); font-size: 12px;
+    font-family: var(--sans); cursor: pointer; transition: all 0.12s;
+  }
+  .calc-mode-btn.active { border-color: var(--gold); background: rgba(201,168,76,0.12); color: var(--gold); }
+
+  /* Locked/computed field — read-only, visually distinct from a live input */
+  .field.locked input {
+    background: rgba(201,168,76,0.06);
+    border-color: rgba(201,168,76,0.3);
+    color: var(--gold);
+    cursor: not-allowed;
+  }
+  .field.locked label::after {
+    content: ' · auto-calculated';
     color: var(--gold);
     text-transform: none;
     letter-spacing: normal;
@@ -247,9 +262,26 @@
         <button class="bs-tab" data-side="sell">Sell</button>
       </div>
 
+      <!-- ════════════════════════════════════
+           CALCULATION MODE TOGGLE
+           Two explicit modes, not three free-floating fields. Whichever
+           mode is active, that field is locked (read-only) and computed
+           from the other two — never a live input. This replaces an
+           earlier version where all three fields recalculated on every
+           keystroke, which broke badly: partial digits triggered
+           cascading recalculations, and clearing a field would get
+           silently overwritten as soon as focus moved to another field.
+           Locking the answer field outright removes that ambiguity.
+           ════════════════════════════════════ -->
+      <div class="calc-mode-row">
+        <span class="calc-mode-label">I know:</span>
+        <button class="calc-mode-btn active" id="modeQtyKnown" data-mode="qty-known">Quantity</button>
+        <button class="calc-mode-btn" id="modeTotalKnown" data-mode="total-known">Total Spent</button>
+      </div>
+
       <div class="field-row-2">
         <div class="field" id="fieldQty">
-          <label for="entryQty">Quantity</label>
+          <label for="entryQty" id="entryQtyLabel">Quantity</label>
           <input type="number" id="entryQty" placeholder="0.00" min="0" step="any" />
           <span class="field-error">Enter a quantity.</span>
         </div>
@@ -263,7 +295,7 @@
       <div class="field" id="fieldTotal">
         <label for="entryTotal" id="entryTotalLabel">Total Spent (USD)</label>
         <input type="number" id="entryTotal" placeholder="0.00" min="0" step="any" />
-        <span class="field-hint" id="calcHint">Fill in any two fields — the third calculates automatically.</span>
+        <span class="field-hint" id="calcHint">Computed from Quantity × Rate.</span>
       </div>
 
       <div class="field">
@@ -508,82 +540,94 @@
   const entryModalSub      = document.getElementById('entryModalSub');
   const bsTabs              = document.getElementById('bsTabs');
   const entryQtyInput       = document.getElementById('entryQty');
+  const entryQtyLabel       = document.getElementById('entryQtyLabel');
   const entryRateInput      = document.getElementById('entryRate');
   const entryRateLabel      = document.getElementById('entryRateLabel');
   const entryTotalInput     = document.getElementById('entryTotal');
   const entryTotalLabel     = document.getElementById('entryTotalLabel');
   const fieldQty             = document.getElementById('fieldQty');
-  const fieldRate            = document.getElementById('fieldRate');
   const fieldTotal           = document.getElementById('fieldTotal');
   const calcHint             = document.getElementById('calcHint');
+  const modeQtyKnown         = document.getElementById('modeQtyKnown');
+  const modeTotalKnown       = document.getElementById('modeTotalKnown');
   const entryDateInput      = document.getElementById('entryDate');
   const entryNotesInput     = document.getElementById('entryNotes');
   const entryModalSave      = document.getElementById('entryModalSave');
 
   /* ════════════════════════════════════════
-     THREE-WAY CALCULATOR: Quantity, Rate, Total Spent
-     Any two filled in → the third is computed automatically.
-     "computed" tracks which field currently holds a derived value (so
-     it can be visually marked and so a fresh user edit to that same
-     field correctly takes priority over the old derived number).
+     TWO-MODE CALCULATOR: Qty×Rate=Total, or Total÷Rate=Qty
+     Exactly one of {Quantity, Total} is the locked/computed answer at
+     any time; Rate is always a live input in both modes. This replaced
+     an earlier "any two of three, recalculate on every keystroke"
+     design that broke in two specific ways the user found: typing a
+     multi-digit number triggered a recalculation after EACH digit
+     (since every keystroke fires an 'input' event), and clearing a
+     field to retype it would get silently overwritten the moment focus
+     moved to the next field. Locking the answer field as read-only,
+     and only recalculating on blur (not on every keystroke) of the
+     live inputs, removes both failure modes structurally rather than
+     patching around them.
      ════════════════════════════════════════ */
-  let lastEditedField = null; // 'qty' | 'rate' | 'total' — the field the user is actively typing into
-  let computedField    = null; // which field currently shows a derived (not user-typed) value
+  let calcMode = 'qty-known'; // 'qty-known' | 'total-known'
 
-  function markComputed(field) {
-    computedField = field;
-    fieldQty.classList.toggle('computed', field === 'qty');
-    fieldRate.classList.toggle('computed', field === 'rate');
-    fieldTotal.classList.toggle('computed', field === 'total');
-  }
-  function clearComputedMark() {
-    computedField = null;
-    fieldQty.classList.remove('computed');
-    fieldRate.classList.remove('computed');
-    fieldTotal.classList.remove('computed');
-  }
+  function setCalcMode(mode) {
+    calcMode = mode;
+    modeQtyKnown.classList.toggle('active', mode === 'qty-known');
+    modeTotalKnown.classList.toggle('active', mode === 'total-known');
 
-  function recalcThreeWay(editedField) {
-    lastEditedField = editedField;
-
-    const qtyVal   = parseFloat(entryQtyInput.value);
-    const rateVal  = parseFloat(entryRateInput.value);
-    const totalVal = parseFloat(entryTotalInput.value);
-
-    const qtyValid   = !isNaN(qtyVal)   && qtyVal   > 0;
-    const rateValid  = !isNaN(rateVal)  && rateVal  > 0;
-    const totalValid = !isNaN(totalVal) && totalVal > 0;
-
-    // Decide which field to compute: prefer recomputing whichever field
-    // is NOT the one just edited and is either empty or was already the
-    // computed one — so we never overwrite a second value the user
-    // deliberately typed by hand.
-    if (editedField !== 'total' && qtyValid && rateValid) {
-      // Qty + Rate known → compute Total
-      entryTotalInput.value = (qtyVal * rateVal).toFixed(2);
-      markComputed('total');
-      calcHint.textContent = 'Total calculated from Quantity × Rate.';
-      return;
+    if (mode === 'qty-known') {
+      // Quantity + Rate are inputs; Total is computed.
+      entryQtyInput.readOnly = false;
+      entryTotalInput.readOnly = true;
+      fieldQty.classList.remove('locked');
+      fieldTotal.classList.add('locked');
+      entryQtyLabel.textContent = 'Quantity';
+      calcHint.textContent = 'Computed from Quantity × Rate.';
+    } else {
+      // Total + Rate are inputs; Quantity is computed.
+      entryTotalInput.readOnly = false;
+      entryQtyInput.readOnly = true;
+      fieldTotal.classList.remove('locked');
+      fieldQty.classList.add('locked');
+      entryTotalLabel.textContent = `Total Spent`;
+      calcHint.textContent = 'Computed from Total ÷ Rate.';
     }
-    if (editedField !== 'rate' && qtyValid && totalValid) {
-      // Qty + Total known → compute Rate
-      entryRateInput.value = (totalVal / qtyVal).toString();
-      markComputed('rate');
-      calcHint.textContent = 'Rate calculated from Total ÷ Quantity.';
-      return;
-    }
-    if (editedField !== 'qty' && rateValid && totalValid) {
-      // Rate + Total known → compute Qty
-      entryQtyInput.value = (totalVal / rateVal).toString();
-      markComputed('qty');
-      calcHint.textContent = 'Quantity calculated from Total ÷ Rate.';
-      return;
-    }
-
-    // Fewer than two fields filled — nothing to compute yet.
-    clearComputedMark();
-    calcHint.textContent = 'Fill in any two fields — the third calculates automatically.';
+    runCalculation();
+    validateEntryModal();
   }
+
+  /* Runs once, only on blur of a live input field — never mid-keystroke. */
+  function runCalculation() {
+    const rateVal = parseFloat(entryRateInput.value);
+    const rateValid = !isNaN(rateVal) && rateVal > 0;
+
+    if (calcMode === 'qty-known') {
+      const qtyVal = parseFloat(entryQtyInput.value);
+      const qtyValid = !isNaN(qtyVal) && qtyVal > 0;
+      entryTotalInput.value = (qtyValid && rateValid) ? (qtyVal * rateVal).toFixed(2) : '';
+    } else {
+      const totalVal = parseFloat(entryTotalInput.value);
+      const totalValid = !isNaN(totalVal) && totalVal > 0;
+      // Quantity is NOT rounded — full precision preserved, same as the
+      // value would have if the user had typed it in directly.
+      entryQtyInput.value = (totalValid && rateValid) ? (totalVal / rateVal).toString() : '';
+    }
+  }
+
+  modeQtyKnown.addEventListener('click', () => setCalcMode('qty-known'));
+  modeTotalKnown.addEventListener('click', () => setCalcMode('total-known'));
+
+  // Calculate on blur (leaving the field), not on every keystroke —
+  // this is the core fix. Typing "150" no longer recalculates 3 times.
+  entryQtyInput.addEventListener('blur', () => { if (calcMode === 'qty-known') { runCalculation(); validateEntryModal(); } });
+  entryRateInput.addEventListener('blur', () => { runCalculation(); validateEntryModal(); });
+  entryTotalInput.addEventListener('blur', () => { if (calcMode === 'total-known') { runCalculation(); validateEntryModal(); } });
+
+  // Still validate live as the user types (button enable/disable should
+  // feel responsive), just don't recompute the locked field mid-keystroke.
+  entryQtyInput.addEventListener('input', validateEntryModal);
+  entryRateInput.addEventListener('input', validateEntryModal);
+  entryTotalInput.addEventListener('input', validateEntryModal);
 
   function openEntryModal(holdingId) {
     editingHoldingId = holdingId;
@@ -602,8 +646,8 @@
     entryTotalInput.value = '';
     entryNotesInput.value = '';
     entryDateInput.value = new Date().toISOString().split('T')[0];
-    clearComputedMark();
-    calcHint.textContent = 'Fill in any two fields — the third calculates automatically.';
+
+    setCalcMode('qty-known');
     validateEntryModal();
 
     entryModalBackdrop.classList.add('open');
@@ -624,11 +668,15 @@
     validateEntryModal();
   });
 
-  entryQtyInput.addEventListener('input', () => { recalcThreeWay('qty'); validateEntryModal(); });
-  entryRateInput.addEventListener('input', () => { recalcThreeWay('rate'); validateEntryModal(); });
-  entryTotalInput.addEventListener('input', () => { recalcThreeWay('total'); validateEntryModal(); });
-
   function validateEntryModal() {
+    // Read current field values directly — do NOT call runCalculation()
+    // here. That was the residual bug: this function fires on every
+    // 'input' event (for responsive button enable/disable), and if it
+    // also recalculated the locked field every time, typing into Rate
+    // would still overwrite Total/Quantity on every digit, which is the
+    // exact problem this rewrite was meant to eliminate. Calculation
+    // only happens on blur (see entryRateInput's blur listener above)
+    // or explicitly right before save, below.
     const qtyOk  = parseFloat(entryQtyInput.value) > 0;
     const rateOk = parseFloat(entryRateInput.value) > 0;
     const dateOk = entryDateInput.value !== '';
@@ -650,7 +698,13 @@
   entryDateInput.addEventListener('input', validateEntryModal);
 
   entryModalSave.addEventListener('click', () => {
+    // Ensure the locked field reflects the latest typed values even if
+    // the user tapped Save without the field ever losing focus (e.g.
+    // pressing Enter or tapping Save directly from the keyboard).
+    runCalculation();
+    validateEntryModal();
     if (entryModalSave.disabled) return;
+
     const holding = holdings.find(h => h.id === editingHoldingId);
     if (!holding) return;
 
