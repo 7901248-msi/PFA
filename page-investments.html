@@ -100,6 +100,22 @@
   .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .field-hint { font-size: 10.5px; font-family: var(--mono); color: var(--muted); }
 
+  /* ── Auto-calculated field indicator ──
+     Whichever of Qty/Rate/Total the user did NOT type into gets this
+     style once the other two produce a computed value — a quiet visual
+     cue that this number was derived, not entered, without being so
+     loud it looks like an error state. */
+  .field.computed input {
+    border-color: rgba(201,168,76,0.4);
+    color: var(--gold);
+  }
+  .field.computed label::after {
+    content: ' · calculated';
+    color: var(--gold);
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
   .bs-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .bs-tab {
     padding: 10px; border-radius: 8px; border: 1.5px solid var(--border); background: transparent;
@@ -234,7 +250,7 @@
       <div class="field-row-2">
         <div class="field" id="fieldQty">
           <label for="entryQty">Quantity</label>
-          <input type="number" id="entryQty" placeholder="0.00" min="0" step="0.00000001" />
+          <input type="number" id="entryQty" placeholder="0.00" min="0" step="any" />
           <span class="field-error">Enter a quantity.</span>
         </div>
         <div class="field" id="fieldRate">
@@ -244,9 +260,10 @@
         </div>
       </div>
 
-      <div class="entry-total-preview">
-        <span class="entry-total-label">Total</span>
-        <span class="entry-total-value" id="entryTotalPreview">—</span>
+      <div class="field" id="fieldTotal">
+        <label for="entryTotal" id="entryTotalLabel">Total Spent (USD)</label>
+        <input type="number" id="entryTotal" placeholder="0.00" min="0" step="any" />
+        <span class="field-hint" id="calcHint">Fill in any two fields — the third calculates automatically.</span>
       </div>
 
       <div class="field">
@@ -493,10 +510,80 @@
   const entryQtyInput       = document.getElementById('entryQty');
   const entryRateInput      = document.getElementById('entryRate');
   const entryRateLabel      = document.getElementById('entryRateLabel');
+  const entryTotalInput     = document.getElementById('entryTotal');
+  const entryTotalLabel     = document.getElementById('entryTotalLabel');
+  const fieldQty             = document.getElementById('fieldQty');
+  const fieldRate            = document.getElementById('fieldRate');
+  const fieldTotal           = document.getElementById('fieldTotal');
+  const calcHint             = document.getElementById('calcHint');
   const entryDateInput      = document.getElementById('entryDate');
   const entryNotesInput     = document.getElementById('entryNotes');
-  const entryTotalPreview   = document.getElementById('entryTotalPreview');
   const entryModalSave      = document.getElementById('entryModalSave');
+
+  /* ════════════════════════════════════════
+     THREE-WAY CALCULATOR: Quantity, Rate, Total Spent
+     Any two filled in → the third is computed automatically.
+     "computed" tracks which field currently holds a derived value (so
+     it can be visually marked and so a fresh user edit to that same
+     field correctly takes priority over the old derived number).
+     ════════════════════════════════════════ */
+  let lastEditedField = null; // 'qty' | 'rate' | 'total' — the field the user is actively typing into
+  let computedField    = null; // which field currently shows a derived (not user-typed) value
+
+  function markComputed(field) {
+    computedField = field;
+    fieldQty.classList.toggle('computed', field === 'qty');
+    fieldRate.classList.toggle('computed', field === 'rate');
+    fieldTotal.classList.toggle('computed', field === 'total');
+  }
+  function clearComputedMark() {
+    computedField = null;
+    fieldQty.classList.remove('computed');
+    fieldRate.classList.remove('computed');
+    fieldTotal.classList.remove('computed');
+  }
+
+  function recalcThreeWay(editedField) {
+    lastEditedField = editedField;
+
+    const qtyVal   = parseFloat(entryQtyInput.value);
+    const rateVal  = parseFloat(entryRateInput.value);
+    const totalVal = parseFloat(entryTotalInput.value);
+
+    const qtyValid   = !isNaN(qtyVal)   && qtyVal   > 0;
+    const rateValid  = !isNaN(rateVal)  && rateVal  > 0;
+    const totalValid = !isNaN(totalVal) && totalVal > 0;
+
+    // Decide which field to compute: prefer recomputing whichever field
+    // is NOT the one just edited and is either empty or was already the
+    // computed one — so we never overwrite a second value the user
+    // deliberately typed by hand.
+    if (editedField !== 'total' && qtyValid && rateValid) {
+      // Qty + Rate known → compute Total
+      entryTotalInput.value = (qtyVal * rateVal).toFixed(2);
+      markComputed('total');
+      calcHint.textContent = 'Total calculated from Quantity × Rate.';
+      return;
+    }
+    if (editedField !== 'rate' && qtyValid && totalValid) {
+      // Qty + Total known → compute Rate
+      entryRateInput.value = (totalVal / qtyVal).toString();
+      markComputed('rate');
+      calcHint.textContent = 'Rate calculated from Total ÷ Quantity.';
+      return;
+    }
+    if (editedField !== 'qty' && rateValid && totalValid) {
+      // Rate + Total known → compute Qty
+      entryQtyInput.value = (totalVal / rateVal).toString();
+      markComputed('qty');
+      calcHint.textContent = 'Quantity calculated from Total ÷ Rate.';
+      return;
+    }
+
+    // Fewer than two fields filled — nothing to compute yet.
+    clearComputedMark();
+    calcHint.textContent = 'Fill in any two fields — the third calculates automatically.';
+  }
 
   function openEntryModal(holdingId) {
     editingHoldingId = holdingId;
@@ -509,11 +596,14 @@
     entryModalTitle.textContent = 'Log Transaction';
     entryModalSub.textContent = `${holding.name} (${holding.symbol})`;
     entryRateLabel.textContent = `Rate (${holding.currency})`;
+    entryTotalLabel.textContent = `Total Spent (${holding.currency})`;
     entryQtyInput.value = '';
     entryRateInput.value = '';
+    entryTotalInput.value = '';
     entryNotesInput.value = '';
     entryDateInput.value = new Date().toISOString().split('T')[0];
-    updateEntryTotal();
+    clearComputedMark();
+    calcHint.textContent = 'Fill in any two fields — the third calculates automatically.';
     validateEntryModal();
 
     entryModalBackdrop.classList.add('open');
@@ -534,17 +624,9 @@
     validateEntryModal();
   });
 
-  function updateEntryTotal() {
-    const qty  = parseFloat(entryQtyInput.value) || 0;
-    const rate = parseFloat(entryRateInput.value) || 0;
-    const holding = holdings.find(h => h.id === editingHoldingId);
-    const currency = holding ? holding.currency : '';
-    entryTotalPreview.textContent = qty > 0 && rate > 0
-      ? `${currency} ${(qty * rate).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`
-      : '—';
-  }
-  entryQtyInput.addEventListener('input', () => { updateEntryTotal(); validateEntryModal(); });
-  entryRateInput.addEventListener('input', () => { updateEntryTotal(); validateEntryModal(); });
+  entryQtyInput.addEventListener('input', () => { recalcThreeWay('qty'); validateEntryModal(); });
+  entryRateInput.addEventListener('input', () => { recalcThreeWay('rate'); validateEntryModal(); });
+  entryTotalInput.addEventListener('input', () => { recalcThreeWay('total'); validateEntryModal(); });
 
   function validateEntryModal() {
     const qtyOk  = parseFloat(entryQtyInput.value) > 0;
@@ -561,6 +643,8 @@
       }
     }
 
+    // Saving still requires a final Qty and Rate — Total is just an
+    // alternate way to arrive at them, not a third thing stored.
     entryModalSave.disabled = !(qtyOk && rateOk && dateOk && sellOk);
   }
   entryDateInput.addEventListener('input', validateEntryModal);
