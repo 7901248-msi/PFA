@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Vault — Investments</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body { min-height: 100vh; }
+
+  .inv-page { width: 100%; }
+
+  .inv-summary { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .inv-summary-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 18px; position: relative; overflow: hidden;
+  }
+  .inv-summary-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--gold); }
+  .inv-summary-label { font-size: 10.5px; font-family: var(--mono); letter-spacing: 0.09em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+  .inv-summary-value { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--gold); }
+  .inv-summary-sub { font-size: 11px; font-family: var(--mono); color: var(--muted); margin-top: 4px; }
+
+  .holding-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+  .holding-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 18px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .holding-card:active { border-color: var(--muted); }
+  .holding-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .holding-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: rgba(201,168,76,0.12); color: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 13px; font-weight: 600; flex-shrink: 0;
+  }
+  .holding-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .holding-symbol { font-size: 11px; font-family: var(--mono); color: var(--muted); margin-top: 1px; }
+  .holding-pnl { margin-left: auto; text-align: right; }
+  .holding-pnl-value { font-family: var(--mono); font-size: 13px; font-weight: 500; }
+  .holding-pnl-pct { font-size: 10.5px; font-family: var(--mono); margin-top: 1px; }
+  .pnl-up   { color: var(--sage); }
+  .pnl-down { color: var(--red); }
+  .pnl-flat { color: var(--muted); }
+
+  .holding-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .holding-stat-label { font-size: 9.5px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+  .holding-stat-value { font-family: var(--mono); font-size: 12.5px; color: var(--text); }
+
+  .add-holding-card {
+    background: transparent; border: 1.5px dashed var(--border); border-radius: var(--radius);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    padding: 24px; cursor: pointer; transition: all 0.15s; color: var(--muted);
+  }
+  .add-holding-card:active { border-color: var(--gold); color: var(--gold); }
+  .add-holding-card .plus { font-size: 20px; line-height: 1; }
+  .add-holding-card .add-label { font-size: 13px; font-weight: 500; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty-state .ic { font-size: 26px; margin-bottom: 10px; }
+  .empty-state .msg { font-size: 13px; color: var(--subtle); }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(5,12,20,0.75);
+    backdrop-filter: blur(3px); display: none; align-items: center; justify-content: center;
+    z-index: 50; padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    width: 100%; max-width: 420px; max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5); animation: slide-up 0.18s ease;
+  }
+  @keyframes slide-up { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 0; }
+  .modal-title { font-size: 14px; font-weight: 600; }
+  .modal-sub { font-size: 11px; font-family: var(--mono); color: var(--muted); margin-top: 2px; }
+  .modal-close {
+    width: 28px; height: 28px; border-radius: 7px; border: none; background: var(--slate);
+    color: var(--subtle); cursor: pointer; font-size: 15px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.12s;
+  }
+  .modal-close:hover { background: var(--border); color: var(--text); }
+  .modal-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 11px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+  input[type="text"], input[type="number"], input[type="date"], select {
+    width: 100%; background: var(--slate); border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 13.5px; font-family: var(--sans); color: var(--text);
+    outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none;
+  }
+  input:focus, select:focus { border-color: var(--gold); }
+  input::placeholder { color: var(--muted); }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238BA3B8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer;
+  }
+  select option { background: var(--slate); }
+  .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field-hint { font-size: 10.5px; font-family: var(--mono); color: var(--muted); }
+
+  .bs-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .bs-tab {
+    padding: 10px; border-radius: 8px; border: 1.5px solid var(--border); background: transparent;
+    color: var(--subtle); font-size: 13px; font-family: var(--sans); font-weight: 500;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .bs-tab.active[data-side="buy"]  { border-color: var(--sage); background: rgba(74,155,142,0.1); color: var(--sage); }
+  .bs-tab.active[data-side="sell"] { border-color: var(--red);  background: rgba(224,82,82,0.1);  color: var(--red); }
+
+  .entry-total-preview {
+    background: var(--slate); border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .entry-total-label { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+  .entry-total-value { font-family: var(--mono); font-size: 16px; font-weight: 500; color: var(--text); }
+
+  .modal-footer { padding: 0 22px 22px; display: flex; gap: 8px; }
+  .mfooter-cancel {
+    padding: 10px 18px; border-radius: 8px; border: 1.5px solid var(--border); background: transparent;
+    color: var(--subtle); font-size: 13px; font-family: var(--sans); cursor: pointer; transition: all 0.12s; font-weight: 500;
+  }
+  .mfooter-cancel:hover { color: var(--text); border-color: var(--muted); }
+  .mfooter-save {
+    flex: 1; padding: 10px 18px; border-radius: 8px; border: none; background: var(--gold);
+    color: var(--navy); font-size: 13.5px; font-family: var(--sans); font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .mfooter-save:hover { background: #d9b85c; }
+  .mfooter-save:disabled { background: var(--muted); color: var(--slate); cursor: not-allowed; }
+
+  .field-error { font-size: 11px; font-family: var(--mono); color: var(--red); display: none; }
+  .field.invalid input, .field.invalid select { border-color: var(--red); }
+  .field.invalid .field-error { display: block; }
+
+  .entry-history-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
+  .entry-row {
+    display: flex; align-items: center; gap: 10px; padding: 9px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .entry-row:last-child { border-bottom: none; }
+  .entry-side-tag {
+    font-size: 10px; font-family: var(--mono); font-weight: 600; padding: 2px 7px;
+    border-radius: 5px; flex-shrink: 0; text-transform: uppercase;
+  }
+  .entry-side-tag.buy  { background: rgba(74,155,142,0.15); color: var(--sage); }
+  .entry-side-tag.sell { background: rgba(224,82,82,0.15);  color: var(--red); }
+  .entry-detail { flex: 1; min-width: 0; }
+  .entry-qty-rate { font-size: 12px; color: var(--text); }
+  .entry-date { font-size: 10px; font-family: var(--mono); color: var(--muted); }
+  .entry-total { font-family: var(--mono); font-size: 12px; color: var(--text); flex-shrink: 0; }
+
+  .delete-confirm { display: flex; flex-direction: column; gap: 14px; padding: 22px; text-align: center; }
+  .delete-icon { font-size: 28px; }
+  .delete-title { font-size: 14px; font-weight: 600; }
+  .delete-sub { font-size: 12px; font-family: var(--mono); color: var(--muted); }
+  .delete-actions { display: flex; gap: 8px; }
+  .delete-actions button { flex: 1; padding: 10px; border-radius: 8px; font-size: 13px; font-family: var(--sans); font-weight: 500; cursor: pointer; transition: all 0.12s; }
+  .del-cancel { background: var(--slate); border: 1.5px solid var(--border); color: var(--subtle); }
+  .del-cancel:hover { color: var(--text); }
+  .del-confirm { background: var(--red); border: none; color: #fff; }
+  .del-confirm:hover { background: #f06060; }
+</style>
+</head>
+<body>
+
+<div class="content inv-page" id="investmentsContent">
+
+  <div class="inv-summary" id="invSummary"></div>
+
+  <div class="holding-grid" id="holdingGrid"></div>
+
+  <div class="empty-state" id="emptyState" style="display:none">
+    <div class="ic">📈</div>
+    <div class="msg">No investments tracked yet</div>
+  </div>
+
+</div>
+
+<div class="modal-backdrop" id="holdingModalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Add Holding</div>
+        <div class="modal-sub">Track a crypto asset, stock, or fund</div>
+      </div>
+      <button class="modal-close" id="holdingModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row-2">
+        <div class="field" id="fieldSymbol">
+          <label for="holdingSymbol">Symbol</label>
+          <input type="text" id="holdingSymbol" placeholder="e.g. SOL" autocomplete="off" maxlength="12" style="text-transform:uppercase" />
+          <span class="field-error">Enter a ticker symbol.</span>
+        </div>
+        <div class="field" id="fieldCurrency">
+          <label for="holdingCurrency">Currency</label>
+          <select id="holdingCurrency">
+            <option value="USD" selected>USD</option>
+            <option value="MVR">MVR</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" id="fieldName">
+        <label for="holdingName">Name</label>
+        <input type="text" id="holdingName" placeholder="e.g. Solana" autocomplete="off" />
+        <span class="field-error">Enter a name for this holding.</span>
+      </div>
+      <div class="field-hint">This creates the holding. Add your first buy entry right after.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="mfooter-cancel" id="holdingModalCancel">Cancel</button>
+      <button class="mfooter-save" id="holdingModalSave" disabled>Add Holding</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="entryModalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="entryModalTitle">Log Transaction</div>
+        <div class="modal-sub" id="entryModalSub">—</div>
+      </div>
+      <button class="modal-close" id="entryModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="bs-tabs" id="bsTabs">
+        <button class="bs-tab active" data-side="buy">Buy</button>
+        <button class="bs-tab" data-side="sell">Sell</button>
+      </div>
+
+      <div class="field-row-2">
+        <div class="field" id="fieldQty">
+          <label for="entryQty">Quantity</label>
+          <input type="number" id="entryQty" placeholder="0.00" min="0" step="0.00000001" />
+          <span class="field-error">Enter a quantity.</span>
+        </div>
+        <div class="field" id="fieldRate">
+          <label for="entryRate" id="entryRateLabel">Rate (USD)</label>
+          <input type="number" id="entryRate" placeholder="0.00" min="0" step="0.01" />
+          <span class="field-error">Enter the price per unit.</span>
+        </div>
+      </div>
+
+      <div class="entry-total-preview">
+        <span class="entry-total-label">Total</span>
+        <span class="entry-total-value" id="entryTotalPreview">—</span>
+      </div>
+
+      <div class="field">
+        <label for="entryDate">Date</label>
+        <input type="date" id="entryDate" />
+      </div>
+
+      <div class="field">
+        <label for="entryNotes">Notes <span style="color:var(--muted);font-size:10px">(optional)</span></label>
+        <input type="text" id="entryNotes" placeholder="e.g. DCA buy, exchange used..." autocomplete="off" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="mfooter-cancel" id="entryModalCancel">Cancel</button>
+      <button class="mfooter-save" id="entryModalSave" disabled>Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="detailModalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="detailModalTitle">—</div>
+        <div class="modal-sub" id="detailModalSub">—</div>
+      </div>
+      <button class="modal-close" id="detailModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="entry-total-preview">
+        <span class="entry-total-label">Avg Cost</span>
+        <span class="entry-total-value" id="detailAvgCost">—</span>
+      </div>
+      <div class="entry-history-list" id="entryHistoryList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="mfooter-cancel" id="detailDeleteBtn" style="color:var(--red);border-color:rgba(224,82,82,0.4)">Delete Holding</button>
+      <button class="mfooter-save" id="detailLogBtn">+ Log Buy/Sell</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="deleteModalBackdrop">
+  <div class="modal">
+    <div class="delete-confirm">
+      <div class="delete-icon">🗑️</div>
+      <div class="delete-title">Delete this holding?</div>
+      <div class="delete-sub" id="deleteSubLabel">This removes the holding and its entire transaction history.</div>
+      <div class="delete-actions">
+        <button class="del-cancel" id="delCancelBtn">Keep it</button>
+        <button class="del-confirm" id="delConfirmBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+
+  let holdings = [
+    {
+      id: 'h1', symbol: 'SOL', name: 'Solana', currency: 'USD',
+      entries: [
+        { id: 'e1', side: 'buy', qty: 12, rate: 145.20, date: '2026-04-10', notes: 'Initial buy' },
+        { id: 'e2', side: 'buy', qty: 5,  rate: 162.80, date: '2026-05-22', notes: '' },
+      ],
+    },
+    {
+      id: 'h2', symbol: 'ETH', name: 'Ethereum', currency: 'USD',
+      entries: [
+        { id: 'e3', side: 'buy', qty: 2.5, rate: 3120.00, date: '2026-03-15', notes: '' },
+      ],
+    },
+  ];
+
+  let editingHoldingId = null;
+  let deletingHoldingId = null;
+  let entrySide = 'buy';
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function computeHoldingStats(holding) {
+    let totalQty = 0;
+    let totalCost = 0;
+    let avgCost = 0;
+    let realizedPnL = 0;
+
+    const sorted = [...holding.entries].sort((a, b) => a.date.localeCompare(b.date));
+
+    sorted.forEach(entry => {
+      if (entry.side === 'buy') {
+        totalCost += entry.qty * entry.rate;
+        totalQty  += entry.qty;
+        avgCost = totalQty > 0 ? totalCost / totalQty : 0;
+      } else {
+        realizedPnL += (entry.rate - avgCost) * entry.qty;
+        totalCost -= avgCost * entry.qty;
+        totalQty  -= entry.qty;
+        if (totalQty < 0) totalQty = 0;
+      }
+    });
+
+    const costBasis = totalQty * avgCost;
+
+    return { totalQty, avgCost, costBasis, realizedPnL };
+  }
+
+  function render() {
+    renderSummary();
+    renderHoldings();
+  }
+
+  function renderSummary() {
+    const summaryEl = document.getElementById('invSummary');
+
+    if (holdings.length === 0) {
+      summaryEl.innerHTML = '';
+      return;
+    }
+
+    const byCurrency = {};
+    holdings.forEach(h => {
+      const stats = computeHoldingStats(h);
+      byCurrency[h.currency] = (byCurrency[h.currency] || 0) + stats.costBasis;
+    });
+
+    summaryEl.innerHTML = Object.entries(byCurrency).map(([cur, total]) => `
+      <div class="inv-summary-card">
+        <div class="inv-summary-label">Total Cost Basis (${cur})</div>
+        <div class="inv-summary-value">${cur} ${total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+        <div class="inv-summary-sub">Sum of holdings priced in ${cur} · no live market value</div>
+      </div>
+    `).join('');
+  }
+
+  function renderHoldings() {
+    const grid = document.getElementById('holdingGrid');
+    const emptyEl = document.getElementById('emptyState');
+
+    if (holdings.length === 0) {
+      emptyEl.style.display = '';
+    } else {
+      emptyEl.style.display = 'none';
+    }
+
+    grid.innerHTML = '';
+
+    holdings.forEach(holding => {
+      const stats = computeHoldingStats(holding);
+      const pnlCls = stats.realizedPnL > 0 ? 'pnl-up' : stats.realizedPnL < 0 ? 'pnl-down' : 'pnl-flat';
+      const pnlSign = stats.realizedPnL > 0 ? '+' : '';
+
+      const card = document.createElement('div');
+      card.className = 'holding-card';
+      card.innerHTML = `
+        <div class="holding-top">
+          <div class="holding-icon">${escHtml(holding.symbol.slice(0,4))}</div>
+          <div>
+            <div class="holding-name">${escHtml(holding.name)}</div>
+            <div class="holding-symbol">${escHtml(holding.symbol)} · ${holding.currency}</div>
+          </div>
+          <div class="holding-pnl">
+            <div class="holding-pnl-value ${pnlCls}">${pnlSign}${holding.currency} ${stats.realizedPnL.toFixed(2)}</div>
+            <div class="holding-pnl-pct ${pnlCls}">realized P&amp;L</div>
+          </div>
+        </div>
+        <div class="holding-stats">
+          <div>
+            <div class="holding-stat-label">Quantity</div>
+            <div class="holding-stat-value">${stats.totalQty.toLocaleString('en-US',{maximumFractionDigits:8})}</div>
+          </div>
+          <div>
+            <div class="holding-stat-label">Avg Cost</div>
+            <div class="holding-stat-value">${holding.currency} ${stats.avgCost.toFixed(2)}</div>
+          </div>
+          <div>
+            <div class="holding-stat-label">Cost Basis</div>
+            <div class="holding-stat-value">${holding.currency} ${stats.costBasis.toFixed(2)}</div>
+          </div>
+        </div>
+      `;
+      card.addEventListener('click', () => openDetailModal(holding.id));
+      grid.appendChild(card);
+    });
+
+    const addCard = document.createElement('div');
+    addCard.className = 'add-holding-card';
+    addCard.innerHTML = `<span class="plus">+</span><span class="add-label">Add Holding</span>`;
+    addCard.addEventListener('click', openHoldingModal);
+    grid.appendChild(addCard);
+  }
+
+  const holdingModalBackdrop = document.getElementById('holdingModalBackdrop');
+  const holdingSymbolInput   = document.getElementById('holdingSymbol');
+  const holdingNameInput     = document.getElementById('holdingName');
+  const holdingCurrencySel   = document.getElementById('holdingCurrency');
+  const holdingModalSave     = document.getElementById('holdingModalSave');
+
+  function openHoldingModal() {
+    holdingSymbolInput.value = '';
+    holdingNameInput.value = '';
+    holdingCurrencySel.value = 'USD';
+    validateHoldingModal();
+    holdingModalBackdrop.classList.add('open');
+    holdingSymbolInput.focus();
+  }
+  function closeHoldingModal() { holdingModalBackdrop.classList.remove('open'); }
+
+  document.getElementById('holdingModalClose').addEventListener('click', closeHoldingModal);
+  document.getElementById('holdingModalCancel').addEventListener('click', closeHoldingModal);
+  holdingModalBackdrop.addEventListener('click', e => { if (e.target === holdingModalBackdrop) closeHoldingModal(); });
+
+  function validateHoldingModal() {
+    const symbolOk = holdingSymbolInput.value.trim().length > 0;
+    const nameOk   = holdingNameInput.value.trim().length > 0;
+    holdingModalSave.disabled = !(symbolOk && nameOk);
+  }
+  holdingSymbolInput.addEventListener('input', validateHoldingModal);
+  holdingNameInput.addEventListener('input', validateHoldingModal);
+
+  holdingModalSave.addEventListener('click', () => {
+    if (holdingModalSave.disabled) return;
+
+    const newHolding = {
+      id: 'h' + Date.now(),
+      symbol: holdingSymbolInput.value.trim().toUpperCase(),
+      name: holdingNameInput.value.trim(),
+      currency: holdingCurrencySel.value,
+      entries: [],
+    };
+    holdings.push(newHolding);
+    closeHoldingModal();
+    render();
+
+    openEntryModal(newHolding.id);
+  });
+
+  const entryModalBackdrop = document.getElementById('entryModalBackdrop');
+  const entryModalTitle    = document.getElementById('entryModalTitle');
+  const entryModalSub      = document.getElementById('entryModalSub');
+  const bsTabs              = document.getElementById('bsTabs');
+  const entryQtyInput       = document.getElementById('entryQty');
+  const entryRateInput      = document.getElementById('entryRate');
+  const entryRateLabel      = document.getElementById('entryRateLabel');
+  const entryDateInput      = document.getElementById('entryDate');
+  const entryNotesInput     = document.getElementById('entryNotes');
+  const entryTotalPreview   = document.getElementById('entryTotalPreview');
+  const entryModalSave      = document.getElementById('entryModalSave');
+
+  function openEntryModal(holdingId) {
+    editingHoldingId = holdingId;
+    const holding = holdings.find(h => h.id === holdingId);
+    if (!holding) return;
+
+    entrySide = 'buy';
+    bsTabs.querySelectorAll('.bs-tab').forEach(t => t.classList.toggle('active', t.dataset.side === 'buy'));
+
+    entryModalTitle.textContent = 'Log Transaction';
+    entryModalSub.textContent = `${holding.name} (${holding.symbol})`;
+    entryRateLabel.textContent = `Rate (${holding.currency})`;
+    entryQtyInput.value = '';
+    entryRateInput.value = '';
+    entryNotesInput.value = '';
+    entryDateInput.value = new Date().toISOString().split('T')[0];
+    updateEntryTotal();
+    validateEntryModal();
+
+    entryModalBackdrop.classList.add('open');
+    entryQtyInput.focus();
+  }
+  function closeEntryModal() { entryModalBackdrop.classList.remove('open'); }
+
+  document.getElementById('entryModalClose').addEventListener('click', closeEntryModal);
+  document.getElementById('entryModalCancel').addEventListener('click', closeEntryModal);
+  entryModalBackdrop.addEventListener('click', e => { if (e.target === entryModalBackdrop) closeEntryModal(); });
+
+  bsTabs.addEventListener('click', e => {
+    const tab = e.target.closest('.bs-tab');
+    if (!tab) return;
+    bsTabs.querySelectorAll('.bs-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    entrySide = tab.dataset.side;
+    validateEntryModal();
+  });
+
+  function updateEntryTotal() {
+    const qty  = parseFloat(entryQtyInput.value) || 0;
+    const rate = parseFloat(entryRateInput.value) || 0;
+    const holding = holdings.find(h => h.id === editingHoldingId);
+    const currency = holding ? holding.currency : '';
+    entryTotalPreview.textContent = qty > 0 && rate > 0
+      ? `${currency} ${(qty * rate).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+      : '—';
+  }
+  entryQtyInput.addEventListener('input', () => { updateEntryTotal(); validateEntryModal(); });
+  entryRateInput.addEventListener('input', () => { updateEntryTotal(); validateEntryModal(); });
+
+  function validateEntryModal() {
+    const qtyOk  = parseFloat(entryQtyInput.value) > 0;
+    const rateOk = parseFloat(entryRateInput.value) > 0;
+    const dateOk = entryDateInput.value !== '';
+
+    let sellOk = true;
+    if (entrySide === 'sell') {
+      const holding = holdings.find(h => h.id === editingHoldingId);
+      if (holding) {
+        const stats = computeHoldingStats(holding);
+        const qty = parseFloat(entryQtyInput.value) || 0;
+        sellOk = qty <= stats.totalQty;
+      }
+    }
+
+    entryModalSave.disabled = !(qtyOk && rateOk && dateOk && sellOk);
+  }
+  entryDateInput.addEventListener('input', validateEntryModal);
+
+  entryModalSave.addEventListener('click', () => {
+    if (entryModalSave.disabled) return;
+    const holding = holdings.find(h => h.id === editingHoldingId);
+    if (!holding) return;
+
+    holding.entries.push({
+      id: 'e' + Date.now(),
+      side: entrySide,
+      qty: parseFloat(entryQtyInput.value),
+      rate: parseFloat(entryRateInput.value),
+      date: entryDateInput.value,
+      notes: entryNotesInput.value.trim(),
+    });
+
+    closeEntryModal();
+    render();
+
+    if (detailModalBackdrop.classList.contains('open') && editingHoldingId === currentDetailHoldingId) {
+      renderDetailModal(editingHoldingId);
+    }
+  });
+
+  const detailModalBackdrop = document.getElementById('detailModalBackdrop');
+  const detailModalTitle    = document.getElementById('detailModalTitle');
+  const detailModalSub      = document.getElementById('detailModalSub');
+  const detailAvgCost       = document.getElementById('detailAvgCost');
+  const entryHistoryList    = document.getElementById('entryHistoryList');
+  let currentDetailHoldingId = null;
+
+  function openDetailModal(holdingId) {
+    currentDetailHoldingId = holdingId;
+    renderDetailModal(holdingId);
+    detailModalBackdrop.classList.add('open');
+  }
+  function closeDetailModal() { detailModalBackdrop.classList.remove('open'); }
+
+  function renderDetailModal(holdingId) {
+    const holding = holdings.find(h => h.id === holdingId);
+    if (!holding) return;
+
+    const stats = computeHoldingStats(holding);
+    detailModalTitle.textContent = holding.name;
+    detailModalSub.textContent = `${holding.symbol} · ${stats.totalQty.toLocaleString('en-US',{maximumFractionDigits:8})} units held`;
+    detailAvgCost.textContent = `${holding.currency} ${stats.avgCost.toFixed(2)}`;
+
+    const sorted = [...holding.entries].sort((a, b) => b.date.localeCompare(a.date));
+    if (sorted.length === 0) {
+      entryHistoryList.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-family:var(--mono)">No entries yet</div>`;
+      return;
+    }
+
+    entryHistoryList.innerHTML = sorted.map(entry => `
+      <div class="entry-row">
+        <span class="entry-side-tag ${entry.side}">${entry.side}</span>
+        <div class="entry-detail">
+          <div class="entry-qty-rate">${entry.qty.toLocaleString('en-US',{maximumFractionDigits:8})} @ ${holding.currency} ${entry.rate.toFixed(2)}</div>
+          <div class="entry-date">${entry.date}${entry.notes ? ' · ' + escHtml(entry.notes) : ''}</div>
+        </div>
+        <div class="entry-total">${holding.currency} ${(entry.qty * entry.rate).toFixed(2)}</div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('detailModalClose').addEventListener('click', closeDetailModal);
+  detailModalBackdrop.addEventListener('click', e => { if (e.target === detailModalBackdrop) closeDetailModal(); });
+
+  document.getElementById('detailLogBtn').addEventListener('click', () => {
+    closeDetailModal();
+    openEntryModal(currentDetailHoldingId);
+  });
+
+  const deleteModalBackdrop = document.getElementById('deleteModalBackdrop');
+
+  document.getElementById('detailDeleteBtn').addEventListener('click', () => {
+    deletingHoldingId = currentDetailHoldingId;
+    const holding = holdings.find(h => h.id === deletingHoldingId);
+    document.getElementById('deleteSubLabel').textContent =
+      `This removes ${holding.name} (${holding.symbol}) and its entire transaction history.`;
+    closeDetailModal();
+    deleteModalBackdrop.classList.add('open');
+  });
+
+  document.getElementById('delCancelBtn').addEventListener('click', () => {
+    deleteModalBackdrop.classList.remove('open');
+  });
+  document.getElementById('delConfirmBtn').addEventListener('click', () => {
+    holdings = holdings.filter(h => h.id !== deletingHoldingId);
+    deleteModalBackdrop.classList.remove('open');
+    render();
+  });
+
+  render();
+
+})();
+</script>
+</body>
+</html>
