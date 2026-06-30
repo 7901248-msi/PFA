@@ -311,7 +311,7 @@
             <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted);margin-top:2px">${owe ? 'Owed to' : 'Owed by'} ${escHtml(loan.party)}${loan.rate ? ` · ${loan.rate}% APR` : ''}</div>
           </div>
           <div style="text-align:right">
-            <div style="font-family:var(--mono);font-size:15px;font-weight:500;color:${accent}">$${loan.balance.toFixed(2)}</div>
+            <div style="font-family:var(--mono);font-size:15px;font-weight:500;color:${accent}">MVR ${loan.balance.toFixed(2)}</div>
             <div style="font-size:10px;font-family:var(--mono);color:var(--muted)">${owe ? pct + '% paid off' : 'outstanding'}</div>
           </div>
         </div>`;

@@ -464,22 +464,22 @@
   <div class="summary-strip">
     <div class="strip-card income">
       <div class="strip-label">Monthly Income</div>
-      <div class="strip-value" id="summIncome">$6,500</div>
+      <div class="strip-value" id="summIncome">MVR 6,500</div>
       <div class="strip-sub">After tax</div>
     </div>
     <div class="strip-card budgeted">
       <div class="strip-label">Total Budgeted</div>
-      <div class="strip-value" id="summBudgeted">$5,200</div>
+      <div class="strip-value" id="summBudgeted">MVR 5,200</div>
       <div class="strip-sub" id="summBudgetedPct">80% of income</div>
     </div>
     <div class="strip-card spent">
       <div class="strip-label">Total Spent</div>
-      <div class="strip-value" id="summSpent">$3,812</div>
+      <div class="strip-value" id="summSpent">MVR 3,812</div>
       <div class="strip-sub" id="summSpentPct">58% of budget used</div>
     </div>
     <div class="strip-card left">
       <div class="strip-label">Remaining</div>
-      <div class="strip-value" id="summLeft">$1,388</div>
+      <div class="strip-value" id="summLeft">MVR 1,388</div>
       <div class="strip-sub" id="summLeftDays">5 days left in month</div>
     </div>
   </div>
@@ -488,17 +488,17 @@
   <div class="overall-bar-wrap">
     <div class="overall-bar-header">
       <span class="overall-title">Overall Budget Progress — June 2026</span>
-      <span class="overall-pct" id="overallPct">58% used · $1,388 remaining</span>
+      <span class="overall-pct" id="overallPct">58% used · MVR 1,388 remaining</span>
     </div>
     <div class="overall-track">
       <div class="overall-fill" id="overallFill" style="width:0%"></div>
     </div>
     <div class="overall-markers">
-      <span class="marker-label">$0</span>
+      <span class="marker-label">MVR 0</span>
       <span class="marker-label">25%</span>
       <span class="marker-label">50%</span>
       <span class="marker-label">75%</span>
-      <span class="marker-label" id="summBudgetedTotal">$5,200</span>
+      <span class="marker-label" id="summBudgetedTotal">MVR 5,200</span>
     </div>
   </div>
 
@@ -550,7 +550,7 @@
 
         <div class="field-row-2">
           <div class="field">
-            <label for="budgetLimit">Monthly Limit ($)</label>
+            <label for="budgetLimit">Monthly Limit (MVR)</label>
             <input type="number" id="budgetLimit" placeholder="0.00" min="1" step="10" />
           </div>
           <div class="field">
@@ -683,7 +683,7 @@
       return `
         <div class="unbudgeted-row">
           <span class="ubcat">${em} ${cat}</span>
-          <span class="ubamt">$${amt.toFixed(2)}</span>
+          <span class="ubamt">MVR ${amt.toFixed(2)}</span>
           <button class="ub-add-btn" data-cat="${cat}" data-em="${em}">+ Set budget</button>
         </div>`;
     }).join('');
@@ -701,15 +701,15 @@
     const remaining     = totalBudgeted - totalSpent;
     const pct           = Math.min(100, Math.round((totalSpent / totalBudgeted) * 100));
 
-    document.getElementById('summIncome').textContent    = `$${INCOME.toLocaleString()}`;
-    document.getElementById('summBudgeted').textContent  = `$${totalBudgeted.toLocaleString()}`;
+    document.getElementById('summIncome').textContent    = `MVR ${INCOME.toLocaleString()}`;
+    document.getElementById('summBudgeted').textContent  = `MVR ${totalBudgeted.toLocaleString()}`;
     document.getElementById('summBudgetedPct').textContent = `${Math.round((totalBudgeted/INCOME)*100)}% of income`;
-    document.getElementById('summSpent').textContent     = `$${totalSpent.toLocaleString()}`;
+    document.getElementById('summSpent').textContent     = `MVR ${totalSpent.toLocaleString()}`;
     document.getElementById('summSpentPct').textContent  = `${pct}% of budget used`;
-    document.getElementById('summLeft').textContent      = `$${remaining.toLocaleString()}`;
+    document.getElementById('summLeft').textContent      = `MVR ${remaining.toLocaleString()}`;
     document.getElementById('summLeftDays').textContent  = daysLeft() + ' days left in month';
-    document.getElementById('overallPct').textContent    = `${pct}% used · $${remaining.toLocaleString()} remaining`;
-    document.getElementById('summBudgetedTotal').textContent = `$${totalBudgeted.toLocaleString()}`;
+    document.getElementById('overallPct').textContent    = `${pct}% used · MVR ${remaining.toLocaleString()} remaining`;
+    document.getElementById('summBudgetedTotal').textContent = `MVR ${totalBudgeted.toLocaleString()}`;
 
     // Animate bar
     requestAnimationFrame(() => {
@@ -737,8 +737,8 @@
       const pillTxt = over ? 'Over budget' : near ? 'Near limit' : 'On track';
       const rem     = b.limit - b.spent;
       const remTxt  = over
-        ? `$${Math.abs(rem).toFixed(0)} over`
-        : `$${rem.toFixed(0)} left`;
+        ? `MVR ${Math.abs(rem).toFixed(0)} over`
+        : `MVR ${rem.toFixed(0)} left`;
       const cardCls = over ? 'over-budget' : near ? 'near-limit' : '';
       const txCount = Math.floor(b.spent / 40) + 1; // simulated
 
@@ -759,8 +759,8 @@
           </div>
         </div>
         <div class="amounts-row">
-          <span class="spent-amount" style="color:${over ? 'var(--red)' : near ? 'var(--orange)' : 'var(--text)'}">${'$' + b.spent.toFixed(0)}</span>
-          <span class="budget-amount">of <span>$${b.limit.toFixed(0)}</span></span>
+          <span class="spent-amount" style="color:${over ? 'var(--red)' : near ? 'var(--orange)' : 'var(--text)'}">${'MVR ' + b.spent.toFixed(0)}</span>
+          <span class="budget-amount">of <span>MVR ${b.limit.toFixed(0)}</span></span>
         </div>
         <div class="bar-track">
           <div class="bar-fill ${barCls}" style="width:0%" data-pct="${Math.min(100,pct)}"></div>

@@ -148,15 +148,36 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 6px;
+    position: relative;
   }
-  .amount-currency {
+
+  /* ── Currency badge — tappable, opens the picker ── */
+  .currency-badge {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--slate);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 9px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    flex-shrink: 0;
+  }
+  .currency-badge:hover { border-color: var(--muted); }
+  .currency-badge-code {
     font-family: var(--mono);
-    font-size: 28px;
-    font-weight: 300;
-    color: var(--muted);
-    user-select: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.02em;
   }
+  .currency-badge-caret {
+    font-size: 9px;
+    color: var(--muted);
+  }
+
   #amount {
     font-family: var(--mono);
     font-size: 36px;
@@ -165,7 +186,7 @@
     background: transparent;
     border: none;
     outline: none;
-    width: 180px;
+    width: 160px;
     text-align: left;
     caret-color: var(--gold);
   }
@@ -174,6 +195,52 @@
   .amount-section.expense  #amount { color: var(--red); }
   .amount-section.income   #amount { color: var(--sage); }
   .amount-section.transfer #amount { color: var(--gold); }
+
+  /* ── Converted-value hint (shown when currency != MVR) ── */
+  .converted-hint {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+    margin-top: 6px;
+    min-height: 14px;
+  }
+  .converted-hint.loading { color: var(--gold); }
+  .converted-hint.error { color: var(--red); }
+
+  /* ── Currency picker dropdown ── */
+  .currency-picker-backdrop {
+    position: fixed; inset: 0; z-index: 50;
+    display: none;
+  }
+  .currency-picker-backdrop.open { display: block; }
+  .currency-picker {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    width: 220px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+    z-index: 60;
+    overflow: hidden;
+  }
+  .currency-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 14px;
+    cursor: pointer;
+    transition: background 0.12s;
+    border-bottom: 1px solid var(--border);
+  }
+  .currency-option:last-child { border-bottom: none; }
+  .currency-option:hover { background: var(--slate); }
+  .currency-option.selected { background: rgba(201,168,76,0.1); }
+  .currency-option-code { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); }
+  .currency-option-name { font-size: 11px; color: var(--muted); }
+  .currency-option-check { color: var(--gold); font-size: 13px; }
 
   /* ── Divider ── */
   .divider {
@@ -413,9 +480,27 @@
     <div class="amount-section expense" id="amountSection">
       <div class="amount-label">Amount</div>
       <div class="amount-input-wrap">
-        <span class="amount-currency">$</span>
+        <div class="currency-badge" id="currencyBadge">
+          <span class="currency-badge-code" id="currencyBadgeCode">MVR</span>
+          <span class="currency-badge-caret">▾</span>
+        </div>
         <input type="number" id="amount" placeholder="0.00" min="0" step="0.01" autocomplete="off" inputmode="decimal" />
+
+        <!-- Currency picker — opens below the badge -->
+        <div class="currency-picker-backdrop" id="currencyPickerBackdrop">
+          <div class="currency-picker" id="currencyPicker">
+            <div class="currency-option selected" data-code="MVR" data-name="Maldivian Rufiyaa">
+              <div><div class="currency-option-code">MVR</div><div class="currency-option-name">Maldivian Rufiyaa</div></div>
+              <span class="currency-option-check">✓</span>
+            </div>
+            <div class="currency-option" data-code="USD" data-name="US Dollar">
+              <div><div class="currency-option-code">USD</div><div class="currency-option-name">US Dollar</div></div>
+              <span class="currency-option-check" style="visibility:hidden">✓</span>
+            </div>
+          </div>
+        </div>
       </div>
+      <div class="converted-hint" id="convertedHint"></div>
     </div>
 
     <div class="divider"></div>
@@ -559,6 +644,7 @@
     category: null,
     recurring: false,
     frequency: 'monthly',
+    currency: 'MVR',        // transaction's original currency
   };
 
   /* ── Element refs ── */
@@ -584,9 +670,103 @@
   const attachZone     = document.getElementById('attachZone');
   const fileInput      = document.getElementById('fileInput');
   const successDetail  = document.getElementById('successDetail');
+  const currencyBadge      = document.getElementById('currencyBadge');
+  const currencyBadgeCode  = document.getElementById('currencyBadgeCode');
+  const currencyPickerBackdrop = document.getElementById('currencyPickerBackdrop');
+  const currencyPicker      = document.getElementById('currencyPicker');
+  const convertedHint       = document.getElementById('convertedHint');
 
   /* ── Set today's date as default ── */
   dateInput.value = new Date().toISOString().split('T')[0];
+
+  /* ════════════════════════════════════════
+     CURRENCY PICKER + LIVE CONVERSION
+     Uses https://github.com/fawazahmed0/exchange-api — free, no API key,
+     no rate limits, served via jsDelivr CDN (CORS-friendly for a static
+     site like this one). Rates are TODAY's rate, not the historical rate
+     on the transaction's date — that would require a paid/keyed API or
+     a backend to query by arbitrary past date. Labeled honestly in the UI.
+     ════════════════════════════════════════ */
+  let convertedMvrAmount = null;  // set after a successful conversion fetch
+  let conversionFetchToken = 0;   // guards against stale async responses
+
+  currencyBadge.addEventListener('click', () => {
+    currencyPickerBackdrop.classList.add('open');
+  });
+  currencyPickerBackdrop.addEventListener('click', (e) => {
+    if (e.target === currencyPickerBackdrop) currencyPickerBackdrop.classList.remove('open');
+  });
+
+  currencyPicker.addEventListener('click', (e) => {
+    const opt = e.target.closest('.currency-option');
+    if (!opt) return;
+
+    currencyPicker.querySelectorAll('.currency-option').forEach(o => {
+      o.classList.remove('selected');
+      o.querySelector('.currency-option-check').style.visibility = 'hidden';
+    });
+    opt.classList.add('selected');
+    opt.querySelector('.currency-option-check').style.visibility = 'visible';
+
+    state.currency = opt.dataset.code;
+    currencyBadgeCode.textContent = state.currency;
+    currencyPickerBackdrop.classList.remove('open');
+
+    updateConversion();
+  });
+
+  /* Fetch today's MVR rate for the selected currency and convert the
+     entered amount. Only runs when currency !== MVR — no network call
+     needed when the transaction is already in the base currency. */
+  async function updateConversion() {
+    const amt = parseFloat(amountInput.value);
+
+    if (state.currency === 'MVR' || !amt || amt <= 0) {
+      convertedMvrAmount = null;
+      convertedHint.textContent = '';
+      convertedHint.className = 'converted-hint';
+      validate();
+      return;
+    }
+
+    const thisFetch = ++conversionFetchToken;
+    convertedHint.textContent = 'Converting...';
+    convertedHint.className = 'converted-hint loading';
+
+    try {
+      const code = state.currency.toLowerCase();
+      const res = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${code}.json`);
+      if (!res.ok) throw new Error('Network response not OK');
+      const data = await res.json();
+
+      // A stale response from an earlier keystroke/currency change arrived
+      // after a newer one — discard it rather than overwrite fresher data.
+      if (thisFetch !== conversionFetchToken) return;
+
+      const rate = data[code]?.mvr;
+      if (!rate) throw new Error('MVR rate not found in response');
+
+      convertedMvrAmount = amt * rate;
+      convertedHint.textContent = `≈ MVR ${convertedMvrAmount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} · today's rate`;
+      convertedHint.className = 'converted-hint';
+    } catch (err) {
+      if (thisFetch !== conversionFetchToken) return;
+      convertedMvrAmount = null;
+      convertedHint.textContent = 'Couldn\'t fetch exchange rate — check connection';
+      convertedHint.className = 'converted-hint error';
+      console.error('[TransactionModal] Currency conversion failed:', err);
+    }
+
+    validate();
+  }
+
+  // Re-fetch conversion as the amount changes, but debounced so we're not
+  // firing a network request on every single keystroke.
+  let conversionDebounce = null;
+  amountInput.addEventListener('input', () => {
+    clearTimeout(conversionDebounce);
+    conversionDebounce = setTimeout(updateConversion, 400);
+  });
 
   /* ── Type tab switching ── */
   document.querySelectorAll('.type-tab').forEach(tab => {
@@ -658,11 +838,16 @@
     if (file) attachZone.querySelector('.attach-text').innerHTML = `<strong>${file.name}</strong> attached`;
   });
 
-  /* ── Validation ── */
+  /* ── Validation ──
+     For non-MVR transactions, the live conversion must have succeeded
+     before saving is allowed — otherwise we'd save a transaction with
+     no known MVR equivalent, which would silently break budget totals
+     downstream rather than fail loudly here where the user can retry. */
   function validate() {
     const amountOk = parseFloat(amountInput.value) > 0;
     const descOk   = descInput.value.trim().length > 0;
     const dateOk   = dateInput.value !== '';
+    const currencyOk = state.currency === 'MVR' || convertedMvrAmount !== null;
 
     let typeSpecificOk = true;
     if (state.type === 'transfer') {
@@ -673,8 +858,8 @@
       typeSpecificOk = accountSel.value !== '';
     }
 
-    btnSave.disabled = !(amountOk && descOk && dateOk && typeSpecificOk);
-    return { amountOk, descOk, dateOk };
+    btnSave.disabled = !(amountOk && descOk && dateOk && typeSpecificOk && currencyOk);
+    return { amountOk, descOk, dateOk, currencyOk };
   }
 
   amountInput.addEventListener('input', validate);
@@ -692,17 +877,30 @@
   descInput.addEventListener('blur', () => markField('fieldDescription', descInput.value.trim() !== ''));
   dateInput.addEventListener('blur', () => markField('fieldDate', dateInput.value !== ''));
 
-  /* ── Save ── */
+  /* ── Save ──
+     IMPORTANT: tx.amount is now ALWAYS the MVR-equivalent amount — this
+     is what every downstream consumer (Dashboard totals, Budget spend,
+     the Transactions ledger summary) needs for consistent math across
+     mixed-currency entries. The transaction's original currency and
+     original-currency amount are preserved separately as
+     tx.originalCurrency / tx.originalAmount, purely for display — so the
+     ledger can show "≈ MVR 1,542.00 (USD 100.00)" instead of silently
+     converting and hiding what the user actually entered. */
   btnSave.addEventListener('click', () => {
     const { amountOk, descOk, dateOk } = validate();
     markField('fieldDescription', descOk);
     markField('fieldDate', dateOk);
     if (btnSave.disabled) return;
 
+    const enteredAmount = parseFloat(amountInput.value);
+    const mvrAmount = state.currency === 'MVR' ? enteredAmount : convertedMvrAmount;
+
     const tx = {
       id:          crypto.randomUUID(),
       type:        state.type,
-      amount:      parseFloat(amountInput.value),
+      amount:      mvrAmount,              // MVR-equivalent, used for all totals/math
+      originalCurrency: state.currency,
+      originalAmount:   enteredAmount,
       description: descInput.value.trim(),
       date:        dateInput.value,
       account:     state.type === 'transfer' ? null : accountSel.value,
@@ -725,7 +923,10 @@
 
     // Show success state
     const sign = tx.type === 'expense' ? '−' : tx.type === 'income' ? '+' : '⇄';
-    successDetail.textContent = `${sign}$${tx.amount.toFixed(2)} · ${tx.description} · ${tx.date}`;
+    const originalNote = tx.originalCurrency !== 'MVR'
+      ? ` (${tx.originalCurrency} ${tx.originalAmount.toFixed(2)})`
+      : '';
+    successDetail.textContent = `${sign}MVR ${tx.amount.toFixed(2)}${originalNote} · ${tx.description} · ${tx.date}`;
     modalBody.style.display = 'none';
     modalFooter.style.display = 'none';
     modalSuccess.style.display = 'flex';
