@@ -710,8 +710,12 @@
   let conversionFetchToken = 0;   // guards against stale async responses
 
   function openCurrencyPicker() {
+    console.log('[CurrencyPicker] Badge clicked — opening picker');
     currencyPickerBackdrop.classList.add('open');
     currencyPicker.classList.add('open');
+    console.log('[CurrencyPicker] currencyPicker classes:', currencyPicker.className);
+    console.log('[CurrencyPicker] computed display:', getComputedStyle(currencyPicker).display);
+    console.log('[CurrencyPicker] bounding rect:', currencyPicker.getBoundingClientRect());
   }
   function closeCurrencyPicker() {
     currencyPickerBackdrop.classList.remove('open');
