@@ -158,6 +158,7 @@
   }
   .loan-currency-picker-backdrop.open { display: block; }
   .loan-currency-picker {
+    display: none;
     position: absolute;
     top: calc(100% + 6px);
     right: 14px;
@@ -169,6 +170,7 @@
     z-index: 160;
     overflow: hidden;
   }
+  .loan-currency-picker.open { display: block; }
   .loan-currency-option {
     display: flex; align-items: center; justify-content: space-between;
     padding: 11px 14px;
@@ -359,16 +361,22 @@
           <span class="loan-currency-code" id="loanCurrencyCode">MVR</span>
           <span class="loan-currency-caret">▾</span>
         </div>
-        <div class="loan-currency-picker-backdrop" id="loanCurrencyPickerBackdrop">
-          <div class="loan-currency-picker" id="loanCurrencyPicker">
-            <div class="loan-currency-option selected" data-code="MVR" data-name="Maldivian Rufiyaa">
-              <div><div class="loan-currency-option-code">MVR</div><div class="loan-currency-option-name">Maldivian Rufiyaa</div></div>
-              <span class="loan-currency-option-check">✓</span>
-            </div>
-            <div class="loan-currency-option" data-code="USD" data-name="US Dollar">
-              <div><div class="loan-currency-option-code">USD</div><div class="loan-currency-option-name">US Dollar</div></div>
-              <span class="loan-currency-option-check" style="visibility:hidden">✓</span>
-            </div>
+
+        <!-- Click-outside-to-close catcher only — no layout role.
+             Same fix as modal-add-transaction.html: a position:absolute
+             picker nested inside this position:fixed backdrop would
+             resolve its top:100% against the full viewport, not the
+             badge, pushing it off-screen. -->
+        <div class="loan-currency-picker-backdrop" id="loanCurrencyPickerBackdrop"></div>
+
+        <div class="loan-currency-picker" id="loanCurrencyPicker">
+          <div class="loan-currency-option selected" data-code="MVR" data-name="Maldivian Rufiyaa">
+            <div><div class="loan-currency-option-code">MVR</div><div class="loan-currency-option-name">Maldivian Rufiyaa</div></div>
+            <span class="loan-currency-option-check">✓</span>
+          </div>
+          <div class="loan-currency-option" data-code="USD" data-name="US Dollar">
+            <div><div class="loan-currency-option-code">USD</div><div class="loan-currency-option-name">US Dollar</div></div>
+            <span class="loan-currency-option-check" style="visibility:hidden">✓</span>
           </div>
         </div>
       </div>
@@ -542,12 +550,17 @@
   let loanExchangeRate = null;     // MVR per 1 unit of selected currency, once fetched
   let loanConversionToken = 0;
 
-  loanCurrencyBadge.addEventListener('click', () => {
+  function openLoanCurrencyPicker() {
     loanCurrencyPickerBackdrop.classList.add('open');
-  });
-  loanCurrencyPickerBackdrop.addEventListener('click', (e) => {
-    if (e.target === loanCurrencyPickerBackdrop) loanCurrencyPickerBackdrop.classList.remove('open');
-  });
+    loanCurrencyPicker.classList.add('open');
+  }
+  function closeLoanCurrencyPicker() {
+    loanCurrencyPickerBackdrop.classList.remove('open');
+    loanCurrencyPicker.classList.remove('open');
+  }
+
+  loanCurrencyBadge.addEventListener('click', openLoanCurrencyPicker);
+  loanCurrencyPickerBackdrop.addEventListener('click', closeLoanCurrencyPicker);
 
   loanCurrencyPicker.addEventListener('click', async (e) => {
     const opt = e.target.closest('.loan-currency-option');
@@ -562,7 +575,7 @@
 
     state.currency = opt.dataset.code;
     loanCurrencyCode.textContent = state.currency;
-    loanCurrencyPickerBackdrop.classList.remove('open');
+    closeLoanCurrencyPicker();
 
     principalLabel.textContent = `Original Amount (${state.currency})`;
     balanceLabel.textContent   = `Current Balance (${state.currency})`;
