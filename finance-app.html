@@ -368,18 +368,163 @@
   /* Scrollbar for the whole page */
   * { scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }
 
-  @media (max-width: 1000px) {
-    .sidebar { width: 60px; }
-    .logo-text, .nav-item span, .sidebar-footer, .nav-section-label { display: none; }
-    .nav-item { justify-content: center; padding: 10px; }
-    .summary-grid { grid-template-columns: 1fr 1fr; }
-    .two-col { grid-template-columns: 1fr; }
-    .security-grid { grid-template-columns: 1fr 1fr; }
+  /* ════════════════════════════════════════
+     MOBILE NAVIGATION (hidden on desktop)
+     Bottom tab bar = 4 highest-frequency pages.
+     Hamburger drawer = everything else.
+     ════════════════════════════════════════ */
+  .bottom-nav, .hamburger-btn, .mobile-drawer, .mobile-drawer-backdrop {
+    display: none;
+  }
+
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    z-index: 80;
+    align-items: stretch;
+    justify-content: space-around;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--subtle);
+    font-size: 10px;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .bottom-nav-item.active { color: var(--gold); }
+  .bottom-nav-item svg { flex-shrink: 0; }
+
+  .hamburger-btn {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--slate);
+    color: var(--text);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .mobile-drawer-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(5,12,20,0.7);
+    z-index: 90;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .mobile-drawer-backdrop.open { display: block; opacity: 1; }
+
+  .mobile-drawer {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 78%;
+    max-width: 300px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    z-index: 95;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+  }
+  .mobile-drawer.open { transform: translateX(0); }
+
+  .mobile-drawer-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mobile-drawer-close {
+    width: 28px; height: 28px; border-radius: 7px;
+    border: none; background: var(--slate); color: var(--subtle);
+    font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mobile-drawer-nav { padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .mobile-drawer-footer { padding: 16px 18px; border-top: 1px solid var(--border); margin-top: auto; }
+
+  /* ════════════════════════════════════════
+     MOBILE BREAKPOINT — phone-first restructure
+     ════════════════════════════════════════ */
+  @media (max-width: 640px) {
+    /* Hide desktop sidebar entirely on phone */
+    .sidebar { display: none; }
+
+    /* Reveal mobile nav elements */
+    .bottom-nav { display: flex; }
+    .hamburger-btn { display: flex; }
+    .mobile-drawer { display: flex; }
+
+    .app { display: block; height: auto; min-height: 100vh; }
+    .main { height: auto; min-height: 100vh; }
+
+    /* Reserve space at the bottom so content isn't hidden behind the tab bar */
+    .content, #loansView.content {
+      padding: 16px 16px calc(76px + env(safe-area-inset-bottom, 0));
+    }
+
+    /* Topbar: simplify to title + hamburger + primary action */
+    .topbar { padding: 0 14px; height: 54px; }
+    .last-sync, .session-info, .btn-ghost { display: none; }
+    .topbar-left { gap: 10px; }
+    .page-title { font-size: 14px; }
+    .btn-primary { padding: 7px 10px; font-size: 12px; }
+    .avatar { width: 28px; height: 28px; font-size: 11px; }
+
+    /* All multi-column grids collapse to single column on phone */
+    .summary-grid,
+    .two-col,
+    .security-grid,
+    .three-col,
+    .budget-grid {
+      grid-template-columns: 1fr !important;
+    }
+
+    .summary-value { font-size: 22px; }
+
+    /* Modals: full-bleed on phone rather than centered floating cards */
+    .modal-backdrop { padding: 0; align-items: flex-end; }
+    .modal { max-width: 100%; border-radius: 16px 16px 0 0; max-height: 92vh; }
   }
 </style>
 </head>
 <body>
 <div class="app">
+
+  <!-- ── Mobile drawer (hamburger menu) — secondary nav items ── -->
+  <div class="mobile-drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="mobile-drawer" id="mobileDrawer">
+    <div class="mobile-drawer-header">
+      <div class="logo" style="padding:0;border:none">
+        <div class="pulse-ring"><div class="dot"></div></div>
+        <span class="logo-text">VAULT<span>.</span></span>
+      </div>
+      <button class="mobile-drawer-close" id="drawerClose">✕</button>
+    </div>
+    <nav class="mobile-drawer-nav" id="drawerNav">
+      <!-- populated by JS, mirrors desktop sidebar's secondary items -->
+    </nav>
+    <div class="mobile-drawer-footer">
+      <div class="security-badge">
+        <div class="indicator"></div>
+        256-bit AES
+      </div>
+    </div>
+  </aside>
 
   <!-- ── Sidebar ── -->
   <aside class="sidebar">
@@ -434,6 +579,9 @@
   <div class="main">
     <header class="topbar">
       <div class="topbar-left">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
         <span class="page-title">Dashboard</span>
         <span class="last-sync">synced 2m ago</span>
       </div>
@@ -737,6 +885,26 @@
     </div>
 
   </div><!-- /main -->
+
+  <!-- ── Bottom tab bar (mobile only) — 4 highest-frequency pages ── -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="bottom-nav-item active" data-page="Dashboard">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5" fill="currentColor" opacity=".8"/><rect x="13" y="3" width="8" height="8" rx="1.5" fill="currentColor"/><rect x="3" y="13" width="8" height="8" rx="1.5" fill="currentColor"/><rect x="13" y="13" width="8" height="8" rx="1.5" fill="currentColor" opacity=".5"/></svg>
+      Dashboard
+    </button>
+    <button class="bottom-nav-item" data-page="Transactions">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M3 9h18M7 3v2m10-2v2M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Transactions
+    </button>
+    <button class="bottom-nav-item" data-page="Budgets">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93V18a1 1 0 0 0-2 0v1.93C7.06 19.44 4.56 16.94 4.07 14H6a1 1 0 0 0 0-2H4.07C4.56 9.06 7.06 6.56 10 6.07V8a1 1 0 0 0 2 0V6.07c2.94.49 5.44 2.99 5.93 5.93H16a1 1 0 0 0 0 2h1.93c-.49 2.94-2.99 5.44-5.93 5.93z" fill="currentColor" opacity=".7"/></svg>
+      Budgets
+    </button>
+    <button class="bottom-nav-item" data-page="Loans">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9 12h6M12 9v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Loans
+    </button>
+  </nav>
 </div>
 
 <script>
@@ -867,14 +1035,79 @@
     pageFrames[name] = frame;
   }
 
+  // ── Unified navigation ──
+  // Three different nav surfaces now exist (desktop sidebar, mobile bottom
+  // bar, mobile drawer) and all three need to call loadPage() and agree on
+  // which item is "active". Routing them all through one function avoids
+  // three separate click handlers silently drifting out of sync.
+  function navigateTo(name) {
+    document.querySelectorAll('.nav-item').forEach(b => {
+      b.classList.toggle('active', b.querySelector('span')?.textContent?.trim() === name);
+    });
+    document.querySelectorAll('.bottom-nav-item').forEach(b => {
+      b.classList.toggle('active', b.dataset.page === name);
+    });
+    document.querySelectorAll('.drawer-nav-item').forEach(b => {
+      b.classList.toggle('active', b.dataset.page === name);
+    });
+    closeDrawer();
+    loadPage(name);
+  }
+
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', function() {
-      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
       const name = this.querySelector('span')?.textContent?.trim() || 'Dashboard';
-      loadPage(name);
+      navigateTo(name);
     });
   });
+
+  document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+    btn.addEventListener('click', function() {
+      navigateTo(this.dataset.page);
+    });
+  });
+
+  // ── Hamburger drawer ──
+  // Houses secondary nav items that don't fit in the 4-slot bottom bar:
+  // Accounts, Investments, Security. None of these have working pages yet
+  // (same gap as on desktop) — clicking them will route through loadPage()
+  // and currently fall back to showing the dashboard, since PAGE_MAP has
+  // no entry. That's consistent with current desktop behavior, not a new gap.
+  const SECONDARY_NAV_ITEMS = [
+    { name: 'Accounts', icon: '<svg width="15" height="15" fill="none" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.8"/><circle cx="6.5" cy="15" r="1.5" fill="currentColor"/></svg>' },
+    { name: 'Investments', icon: '<svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 14l4-4 4 4 4-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+    { name: 'Security', icon: '<svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+  ];
+
+  const drawerNav = document.getElementById('drawerNav');
+  drawerNav.innerHTML = SECONDARY_NAV_ITEMS.map(item => `
+    <button class="nav-item drawer-nav-item" data-page="${item.name}" style="width:100%">
+      ${item.icon}
+      <span>${item.name}</span>
+    </button>
+  `).join('');
+
+  drawerNav.querySelectorAll('.drawer-nav-item').forEach(btn => {
+    btn.addEventListener('click', () => navigateTo(btn.dataset.page));
+  });
+
+  const mobileDrawer   = document.getElementById('mobileDrawer');
+  const drawerBackdrop = document.getElementById('drawerBackdrop');
+  const hamburgerBtn   = document.getElementById('hamburgerBtn');
+  const drawerClose    = document.getElementById('drawerClose');
+
+  function openDrawer() {
+    mobileDrawer.classList.add('open');
+    drawerBackdrop.classList.add('open');
+  }
+  function closeDrawer() {
+    mobileDrawer.classList.remove('open');
+    drawerBackdrop.classList.remove('open');
+  }
+
+  hamburgerBtn.addEventListener('click', openDrawer);
+  drawerClose.addEventListener('click', closeDrawer);
+  drawerBackdrop.addEventListener('click', closeDrawer);
 
   // ── Session countdown ──
   let totalSeconds = 14 * 60 + 23;
