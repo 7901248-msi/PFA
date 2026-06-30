@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Modal — Add Transaction</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ── Design tokens (match finance-app.html) ── */
+  :root {
+    --navy:     #0D1B2A;
+    --slate:    #1A2B3C;
+    --panel:    #162230;
+    --border:   #243447;
+    --muted:    #3A5068;
+    --text:     #F0F4F8;
+    --subtle:   #8BA3B8;
+    --gold:     #C9A84C;
+    --sage:     #4A9B8E;
+    --red:      #E05252;
+    --mono:     'DM Mono', monospace;
+    --sans:     'Inter', sans-serif;
+    --radius:   10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    font-size: 14px;
+    background: var(--navy);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    /* For standalone testing: center the modal on screen */
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ────────────────────────────────────────
+     BACKDROP
+     When embedded in main app: position:fixed, inset:0
+     ──────────────────────────────────────── */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 12, 20, 0.75);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+    opacity: 0;
+    animation: fade-in 0.18s ease forwards;
+  }
+  @keyframes fade-in {
+    to { opacity: 1; }
+  }
+
+  /* ────────────────────────────────────────
+     MODAL SHELL
+     ──────────────────────────────────────── */
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    transform: translateY(12px);
+    animation: slide-up 0.2s ease forwards;
+  }
+  @keyframes slide-up {
+    to { transform: translateY(0); }
+  }
+  .modal::-webkit-scrollbar { width: 3px; }
+  .modal::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+  /* ── Modal header ── */
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 0;
+  }
+  .modal-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .modal-close {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    border: none;
+    background: var(--slate);
+    color: var(--subtle);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.12s, color 0.12s;
+    line-height: 1;
+  }
+  .modal-close:hover { background: var(--border); color: var(--text); }
+
+  /* ── Type tabs ── */
+  .type-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 18px 24px 0;
+  }
+  .type-tab {
+    padding: 9px 8px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--subtle);
+    font-size: 12.5px;
+    font-family: var(--sans);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .type-tab:hover { border-color: var(--muted); color: var(--text); }
+  .type-tab.active[data-type="expense"]  { border-color: var(--red);  background: rgba(224,82,82,0.1);  color: var(--red); }
+  .type-tab.active[data-type="income"]   { border-color: var(--sage); background: rgba(74,155,142,0.1); color: var(--sage); }
+  .type-tab.active[data-type="transfer"] { border-color: var(--gold); background: rgba(201,168,76,0.1); color: var(--gold); }
+
+  /* ── Amount hero ── */
+  .amount-section {
+    padding: 20px 24px 0;
+    text-align: center;
+  }
+  .amount-label {
+    font-size: 10.5px;
+    font-family: var(--mono);
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .amount-input-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .amount-currency {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--muted);
+    user-select: none;
+  }
+  #amount {
+    font-family: var(--mono);
+    font-size: 36px;
+    font-weight: 500;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 180px;
+    text-align: left;
+    caret-color: var(--gold);
+  }
+  #amount::placeholder { color: var(--muted); }
+  /* Dynamic color based on type */
+  .amount-section.expense  #amount { color: var(--red); }
+  .amount-section.income   #amount { color: var(--sage); }
+  .amount-section.transfer #amount { color: var(--gold); }
+
+  /* ── Divider ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0 0;
+  }
+
+  /* ── Form body ── */
+  .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* ── Field ── */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  label {
+    font-size: 11px;
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  input[type="text"],
+  input[type="date"],
+  input[type="number"],
+  select,
+  textarea {
+    width: 100%;
+    background: var(--slate);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13.5px;
+    font-family: var(--sans);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--gold);
+  }
+  input::placeholder, textarea::placeholder { color: var(--muted); }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238BA3B8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
+  select option { background: var(--slate); }
+  textarea { resize: vertical; min-height: 68px; font-size: 13px; line-height: 1.5; }
+
+  /* ── Category grid ── */
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .cat-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 6px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--subtle);
+    font-size: 11px;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .cat-btn:hover { border-color: var(--muted); color: var(--text); background: var(--slate); }
+  .cat-btn.active { border-color: var(--gold); background: rgba(201,168,76,0.1); color: var(--gold); }
+  .cat-btn .emoji { font-size: 18px; line-height: 1; }
+
+  /* ── Recurring toggle ── */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--slate);
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .toggle-row:hover { border-color: var(--muted); }
+  .toggle-row.active { border-color: var(--gold); }
+  .toggle-left { display: flex; flex-direction: column; gap: 2px; }
+  .toggle-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .toggle-sub { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+
+  .toggle-switch {
+    width: 38px; height: 22px;
+    border-radius: 11px;
+    background: var(--border);
+    position: relative;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--subtle);
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle-row.active .toggle-switch { background: rgba(201,168,76,0.3); }
+  .toggle-row.active .toggle-switch::after { transform: translateX(16px); background: var(--gold); }
+
+  /* Recurring frequency (conditionally shown) */
+  .recurring-opts {
+    display: none;
+    gap: 6px;
+  }
+  .recurring-opts.visible { display: flex; }
+  .freq-btn {
+    flex: 1;
+    padding: 7px 4px;
+    border-radius: 7px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--subtle);
+    font-size: 11.5px;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: all 0.12s;
+    text-align: center;
+  }
+  .freq-btn:hover { background: var(--slate); color: var(--text); }
+  .freq-btn.active { border-color: var(--gold); background: rgba(201,168,76,0.1); color: var(--gold); }
+
+  /* ── Attachment zone ── */
+  .attach-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .attach-zone:hover { border-color: var(--muted); background: var(--slate); }
+  .attach-icon { font-size: 18px; opacity: 0.6; }
+  .attach-text { font-size: 12px; color: var(--muted); }
+  .attach-text strong { color: var(--subtle); font-weight: 500; }
+
+  /* ── Modal footer ── */
+  .modal-footer {
+    padding: 0 24px 24px;
+    display: flex;
+    gap: 10px;
+  }
+  .btn {
+    flex: 1;
+    padding: 11px 16px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-family: var(--sans);
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn-cancel { background: var(--slate); color: var(--subtle); border: 1.5px solid var(--border); flex: 0 0 auto; padding: 11px 20px; }
+  .btn-cancel:hover { color: var(--text); border-color: var(--muted); }
+  .btn-save { background: var(--gold); color: var(--navy); font-weight: 600; }
+  .btn-save:hover { background: #d9b85c; }
+  .btn-save:disabled { background: var(--muted); color: var(--slate); cursor: not-allowed; }
+
+  /* ── Validation ── */
+  .field-error { font-size: 11px; font-family: var(--mono); color: var(--red); display: none; }
+  .field.invalid input, .field.invalid select { border-color: var(--red); }
+  .field.invalid .field-error { display: block; }
+
+  /* ── Success state ── */
+  .modal-success {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 48px 24px;
+    text-align: center;
+  }
+  .success-icon {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: rgba(74,155,142,0.15);
+    border: 1.5px solid var(--sage);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .success-title { font-size: 15px; font-weight: 600; }
+  .success-sub { font-size: 12.5px; font-family: var(--mono); color: var(--muted); }
+
+  /* Transfer fields (conditionally shown) */
+  .transfer-fields { display: none; }
+  .transfer-fields.visible { display: contents; }
+  .income-expense-fields { display: contents; }
+  .income-expense-fields.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     MODAL BACKDROP
+     Remove .modal-backdrop and keep only
+     .modal when embedding in main app via JS
+     ══════════════════════════════════════ -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="addTransactionModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+
+    <!-- Header -->
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Add Transaction</span>
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+    </div>
+
+    <!-- Type tabs -->
+    <div class="type-tabs">
+      <button class="type-tab active" data-type="expense">
+        <span>↑</span> Expense
+      </button>
+      <button class="type-tab" data-type="income">
+        <span>↓</span> Income
+      </button>
+      <button class="type-tab" data-type="transfer">
+        <span>⇄</span> Transfer
+      </button>
+    </div>
+
+    <!-- Amount hero -->
+    <div class="amount-section expense" id="amountSection">
+      <div class="amount-label">Amount</div>
+      <div class="amount-input-wrap">
+        <span class="amount-currency">$</span>
+        <input type="number" id="amount" placeholder="0.00" min="0" step="0.01" autocomplete="off" inputmode="decimal" />
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Form body -->
+    <div class="modal-body" id="modalBody">
+
+      <!-- Description -->
+      <div class="field" id="fieldDescription">
+        <label for="description">Description</label>
+        <input type="text" id="description" placeholder="e.g. Netflix, Rent, Salary…" autocomplete="off" />
+        <span class="field-error">Please enter a description.</span>
+      </div>
+
+      <!-- Date + Account -->
+      <div class="field-row">
+        <div class="field" id="fieldDate">
+          <label for="txDate">Date</label>
+          <input type="date" id="txDate" />
+          <span class="field-error">Date required.</span>
+        </div>
+        <div class="field income-expense-fields" id="fieldAccount">
+          <label for="account">Account</label>
+          <select id="account">
+            <option value="">Select account…</option>
+            <option value="chase-checking">Chase Checking ···4821</option>
+            <option value="amex">Amex ···9210</option>
+            <option value="chase-visa">Chase Visa ···7734</option>
+            <option value="ally-savings">Ally Savings ···3309</option>
+            <option value="fidelity">Fidelity Brokerage</option>
+          </select>
+          <span class="field-error">Select an account.</span>
+        </div>
+      </div>
+
+      <!-- Transfer: from / to accounts -->
+      <div class="transfer-fields" id="transferFields">
+        <div class="field-row" style="grid-column:1/-1">
+          <div class="field">
+            <label for="transferFrom">From Account</label>
+            <select id="transferFrom">
+              <option value="">From…</option>
+              <option value="chase-checking">Chase Checking ···4821</option>
+              <option value="amex">Amex ···9210</option>
+              <option value="ally-savings">Ally Savings ···3309</option>
+              <option value="fidelity">Fidelity Brokerage</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="transferTo">To Account</label>
+            <select id="transferTo">
+              <option value="">To…</option>
+              <option value="chase-checking">Chase Checking ···4821</option>
+              <option value="amex">Amex ···9210</option>
+              <option value="ally-savings">Ally Savings ···3309</option>
+              <option value="fidelity">Fidelity Brokerage</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category (hidden for transfers) -->
+      <div class="field income-expense-fields" id="fieldCategory">
+        <label>Category</label>
+        <div class="category-grid" id="categoryGrid">
+          <button class="cat-btn" data-cat="housing"><span class="emoji">🏠</span>Housing</button>
+          <button class="cat-btn" data-cat="food"><span class="emoji">🛒</span>Food</button>
+          <button class="cat-btn" data-cat="dining"><span class="emoji">🍕</span>Dining</button>
+          <button class="cat-btn" data-cat="transport"><span class="emoji">🚗</span>Transport</button>
+          <button class="cat-btn" data-cat="health"><span class="emoji">💊</span>Health</button>
+          <button class="cat-btn" data-cat="subscriptions"><span class="emoji">🎵</span>Subscriptions</button>
+          <button class="cat-btn" data-cat="salary"><span class="emoji">💼</span>Salary</button>
+          <button class="cat-btn" data-cat="investment"><span class="emoji">📈</span>Investment</button>
+          <button class="cat-btn" data-cat="utilities"><span class="emoji">⚡</span>Utilities</button>
+          <button class="cat-btn" data-cat="shopping"><span class="emoji">🛍️</span>Shopping</button>
+          <button class="cat-btn" data-cat="travel"><span class="emoji">✈️</span>Travel</button>
+          <button class="cat-btn" data-cat="other"><span class="emoji">•••</span>Other</button>
+        </div>
+      </div>
+
+      <!-- Recurring toggle -->
+      <div class="field income-expense-fields" id="fieldRecurring">
+        <label>Recurring</label>
+        <div class="toggle-row" id="recurringToggle">
+          <div class="toggle-left">
+            <span class="toggle-title">Repeat this transaction</span>
+            <span class="toggle-sub" id="recurringSubtext">Off</span>
+          </div>
+          <div class="toggle-switch"></div>
+        </div>
+        <div class="recurring-opts" id="recurringOpts">
+          <button class="freq-btn" data-freq="weekly">Weekly</button>
+          <button class="freq-btn active" data-freq="monthly">Monthly</button>
+          <button class="freq-btn" data-freq="quarterly">Quarterly</button>
+          <button class="freq-btn" data-freq="yearly">Yearly</button>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="field">
+        <label for="notes">Notes <span style="color:var(--muted);font-size:10px">(optional)</span></label>
+        <textarea id="notes" placeholder="Add a note or reference number…"></textarea>
+      </div>
+
+      <!-- Receipt attachment -->
+      <div class="attach-zone" id="attachZone">
+        <span class="attach-icon">📎</span>
+        <span class="attach-text"><strong>Attach receipt</strong> — drag & drop or click to browse</span>
+        <input type="file" accept="image/*,application/pdf" style="display:none" id="fileInput" />
+      </div>
+
+    </div><!-- /modal-body -->
+
+    <!-- Success state (replaces body on submit) -->
+    <div class="modal-success" id="modalSuccess">
+      <div class="success-icon">✓</div>
+      <div class="success-title">Transaction saved</div>
+      <div class="success-sub" id="successDetail"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer" id="modalFooter">
+      <button class="btn btn-cancel" id="btnCancel">Cancel</button>
+      <button class="btn btn-save" id="btnSave" disabled>Save Transaction</button>
+    </div>
+
+  </div><!-- /modal -->
+</div><!-- /backdrop -->
+
+<!-- ══════════════════════════════════════
+     SCRIPT
+     Self-contained — no external deps.
+     Export: window.TransactionModal (open/close/onSave)
+     ══════════════════════════════════════ -->
+<script>
+(function() {
+
+  /* ── State ── */
+  let state = {
+    type: 'expense',       // 'expense' | 'income' | 'transfer'
+    category: null,
+    recurring: false,
+    frequency: 'monthly',
+  };
+
+  /* ── Element refs ── */
+  const backdrop       = document.getElementById('modalBackdrop');
+  const modal          = document.getElementById('addTransactionModal');
+  const btnClose       = document.getElementById('modalClose');
+  const btnCancel      = document.getElementById('btnCancel');
+  const btnSave        = document.getElementById('btnSave');
+  const amountInput    = document.getElementById('amount');
+  const amountSection  = document.getElementById('amountSection');
+  const descInput      = document.getElementById('description');
+  const dateInput      = document.getElementById('txDate');
+  const accountSel     = document.getElementById('account');
+  const transferFields = document.getElementById('transferFields');
+  const incExpFields   = document.querySelectorAll('.income-expense-fields');
+  const categoryGrid   = document.getElementById('categoryGrid');
+  const recurringToggle= document.getElementById('recurringToggle');
+  const recurringOpts  = document.getElementById('recurringOpts');
+  const recurringSubtext = document.getElementById('recurringSubtext');
+  const modalBody      = document.getElementById('modalBody');
+  const modalSuccess   = document.getElementById('modalSuccess');
+  const modalFooter    = document.getElementById('modalFooter');
+  const attachZone     = document.getElementById('attachZone');
+  const fileInput      = document.getElementById('fileInput');
+  const successDetail  = document.getElementById('successDetail');
+
+  /* ── Set today's date as default ── */
+  dateInput.value = new Date().toISOString().split('T')[0];
+
+  /* ── Type tab switching ── */
+  document.querySelectorAll('.type-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      state.type = tab.dataset.type;
+
+      // Update amount colour class
+      amountSection.className = 'amount-section ' + state.type;
+
+      // Show/hide transfer vs income-expense fields
+      if (state.type === 'transfer') {
+        transferFields.classList.add('visible');
+        incExpFields.forEach(el => el.classList.add('hidden'));
+      } else {
+        transferFields.classList.remove('visible');
+        incExpFields.forEach(el => el.classList.remove('hidden'));
+      }
+
+      validate();
+    });
+  });
+
+  /* ── Category selection ── */
+  categoryGrid.addEventListener('click', e => {
+    const btn = e.target.closest('.cat-btn');
+    if (!btn) return;
+    categoryGrid.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.category = btn.dataset.cat;
+    validate();
+  });
+
+  /* ── Recurring toggle ── */
+  recurringToggle.addEventListener('click', () => {
+    state.recurring = !state.recurring;
+    recurringToggle.classList.toggle('active', state.recurring);
+    recurringOpts.classList.toggle('visible', state.recurring);
+    recurringSubtext.textContent = state.recurring
+      ? `Every ${state.frequency}`
+      : 'Off';
+  });
+
+  /* ── Frequency buttons ── */
+  recurringOpts.addEventListener('click', e => {
+    const btn = e.target.closest('.freq-btn');
+    if (!btn) return;
+    recurringOpts.querySelectorAll('.freq-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.frequency = btn.dataset.freq;
+    recurringSubtext.textContent = `Every ${state.frequency}`;
+  });
+
+  /* ── Attachment ── */
+  attachZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) {
+      attachZone.querySelector('.attach-text').innerHTML =
+        `<strong>${fileInput.files[0].name}</strong> attached`;
+    }
+  });
+  attachZone.addEventListener('dragover', e => { e.preventDefault(); attachZone.style.borderColor = 'var(--gold)'; });
+  attachZone.addEventListener('dragleave', () => { attachZone.style.borderColor = ''; });
+  attachZone.addEventListener('drop', e => {
+    e.preventDefault();
+    attachZone.style.borderColor = '';
+    const file = e.dataTransfer.files[0];
+    if (file) attachZone.querySelector('.attach-text').innerHTML = `<strong>${file.name}</strong> attached`;
+  });
+
+  /* ── Validation ── */
+  function validate() {
+    const amountOk = parseFloat(amountInput.value) > 0;
+    const descOk   = descInput.value.trim().length > 0;
+    const dateOk   = dateInput.value !== '';
+
+    let typeSpecificOk = true;
+    if (state.type === 'transfer') {
+      const from = document.getElementById('transferFrom').value;
+      const to   = document.getElementById('transferTo').value;
+      typeSpecificOk = from !== '' && to !== '' && from !== to;
+    } else {
+      typeSpecificOk = accountSel.value !== '';
+    }
+
+    btnSave.disabled = !(amountOk && descOk && dateOk && typeSpecificOk);
+    return { amountOk, descOk, dateOk };
+  }
+
+  amountInput.addEventListener('input', validate);
+  descInput.addEventListener('input', validate);
+  dateInput.addEventListener('input', validate);
+  accountSel.addEventListener('change', validate);
+  document.getElementById('transferFrom').addEventListener('change', validate);
+  document.getElementById('transferTo').addEventListener('change', validate);
+
+  /* ── Inline validation on blur ── */
+  function markField(fieldId, isValid) {
+    const field = document.getElementById(fieldId);
+    if (field) field.classList.toggle('invalid', !isValid);
+  }
+  descInput.addEventListener('blur', () => markField('fieldDescription', descInput.value.trim() !== ''));
+  dateInput.addEventListener('blur', () => markField('fieldDate', dateInput.value !== ''));
+
+  /* ── Save ── */
+  btnSave.addEventListener('click', () => {
+    const { amountOk, descOk, dateOk } = validate();
+    markField('fieldDescription', descOk);
+    markField('fieldDate', dateOk);
+    if (btnSave.disabled) return;
+
+    const tx = {
+      id:          crypto.randomUUID(),
+      type:        state.type,
+      amount:      parseFloat(amountInput.value),
+      description: descInput.value.trim(),
+      date:        dateInput.value,
+      account:     state.type === 'transfer' ? null : accountSel.value,
+      fromAccount: state.type === 'transfer' ? document.getElementById('transferFrom').value : null,
+      toAccount:   state.type === 'transfer' ? document.getElementById('transferTo').value : null,
+      category:    state.category,
+      recurring:   state.recurring,
+      frequency:   state.recurring ? state.frequency : null,
+      notes:       document.getElementById('notes').value.trim(),
+      createdAt:   new Date().toISOString(),
+    };
+
+    // Fire callback if registered
+    if (typeof window.TransactionModal?.onSave === 'function') {
+      window.TransactionModal.onSave(tx);
+    }
+
+    // Console output (useful during development)
+    console.log('[TransactionModal] Saved:', tx);
+
+    // Show success state
+    const sign = tx.type === 'expense' ? '−' : tx.type === 'income' ? '+' : '⇄';
+    successDetail.textContent = `${sign}$${tx.amount.toFixed(2)} · ${tx.description} · ${tx.date}`;
+    modalBody.style.display = 'none';
+    modalFooter.style.display = 'none';
+    modalSuccess.style.display = 'flex';
+
+    // Auto-close after 1.8s
+    setTimeout(() => closeModal(), 1800);
+  });
+
+  /* ── Close ── */
+  function closeModal() {
+    modal.style.animation = 'none';
+    backdrop.style.opacity = '0';
+    backdrop.style.transition = 'opacity 0.15s';
+    setTimeout(() => {
+      backdrop.style.display = 'none';
+      if (typeof window.TransactionModal?.onClose === 'function') {
+        window.TransactionModal.onClose();
+      }
+    }, 150);
+  }
+
+  btnClose.addEventListener('click', closeModal);
+  btnCancel.addEventListener('click', closeModal);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  /* ── Public API (used by main app) ──
+     Call window.TransactionModal.open() to show the modal.
+     Set window.TransactionModal.onSave = fn to receive the tx object.
+  */
+  window.TransactionModal = {
+    open() {
+      backdrop.style.display = 'flex';
+      backdrop.style.opacity = '';
+      modalBody.style.display = '';
+      modalFooter.style.display = '';
+      modalSuccess.style.display = 'none';
+      amountInput.focus();
+    },
+    close: closeModal,
+    onSave: null,   // override: window.TransactionModal.onSave = (tx) => { ... }
+    onClose: null,  // override: window.TransactionModal.onClose = () => { ... }
+  };
+
+})();
+</script>
+</body>
+</html>

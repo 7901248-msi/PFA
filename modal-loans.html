@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Modal — Loans</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ── Design tokens (match finance-app.html) ── */
+  :root {
+    --navy:     #0D1B2A;
+    --slate:    #1A2B3C;
+    --panel:    #162230;
+    --border:   #243447;
+    --muted:    #3A5068;
+    --text:     #F0F4F8;
+    --subtle:   #8BA3B8;
+    --gold:     #C9A84C;
+    --sage:     #4A9B8E;
+    --red:      #E05252;
+    --orange:   #D4854A;
+    --mono:     'DM Mono', monospace;
+    --sans:     'Inter', sans-serif;
+    --radius:   10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    font-size: 14px;
+    background: var(--navy);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ────────────────────────────────────────
+     BACKDROP
+     ──────────────────────────────────────── */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 12, 20, 0.75);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+    opacity: 0;
+    animation: fade-in 0.18s ease forwards;
+  }
+  @keyframes fade-in { to { opacity: 1; } }
+
+  /* ────────────────────────────────────────
+     MODAL SHELL — wider than tx modal since
+     loans carry more fields (rate, term, etc)
+     ──────────────────────────────────────── */
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    transform: translateY(12px);
+    animation: slide-up 0.2s ease forwards;
+  }
+  @keyframes slide-up { to { transform: translateY(0); } }
+  .modal::-webkit-scrollbar { width: 3px; }
+  .modal::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px 0;
+  }
+  .modal-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .modal-sub   { font-size: 11.5px; font-family: var(--mono); color: var(--muted); margin-top: 3px; }
+  .modal-close {
+    width: 28px; height: 28px; border-radius: 7px; border: none;
+    background: var(--slate); color: var(--subtle); font-size: 16px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.12s, color 0.12s; line-height: 1;
+  }
+  .modal-close:hover { background: var(--border); color: var(--text); }
+
+  /* ── Direction tabs: I Owe / Owed To Me ──
+     This is the central modeling decision: a single "loan" record
+     represents debt in either direction so it can live in one list,
+     filterable by direction, rather than two disconnected features. */
+  .direction-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 18px 24px 0;
+  }
+  .dir-tab {
+    padding: 11px 10px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--subtle);
+    font-size: 13px;
+    font-family: var(--sans);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .dir-tab .dt-sub { font-size: 10.5px; font-family: var(--mono); opacity: 0.7; }
+  .dir-tab:hover { border-color: var(--muted); color: var(--text); }
+  .dir-tab.active[data-dir="owe"]   { border-color: var(--red);  background: rgba(224,82,82,0.1);  color: var(--red); }
+  .dir-tab.active[data-dir="owed"]  { border-color: var(--sage); background: rgba(74,155,142,0.1); color: var(--sage); }
+
+  .modal-body { padding: 18px 24px; display: flex; flex-direction: column; gap: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  label {
+    font-size: 11px; font-family: var(--mono); letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+
+  input[type="text"], input[type="date"], input[type="number"], select, textarea {
+    width: 100%;
+    background: var(--slate);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13.5px;
+    font-family: var(--sans);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none; appearance: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+  input::placeholder, textarea::placeholder { color: var(--muted); }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238BA3B8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+    padding-right: 32px; cursor: pointer;
+  }
+  select option { background: var(--slate); }
+
+  .field-hint { font-size: 10.5px; font-family: var(--mono); color: var(--muted); }
+  .field-error { font-size: 11px; font-family: var(--mono); color: var(--red); display: none; }
+  .field.invalid input, .field.invalid select { border-color: var(--red); }
+  .field.invalid .field-error { display: block; }
+
+  /* ── Loan type chips ── */
+  .type-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .type-chip {
+    padding: 7px 12px;
+    border-radius: 7px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--subtle);
+    font-size: 12px;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: all 0.12s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .type-chip:hover { border-color: var(--muted); color: var(--text); background: var(--slate); }
+  .type-chip.active { border-color: var(--gold); background: rgba(201,168,76,0.1); color: var(--gold); }
+
+  /* ── Computed payoff preview ── */
+  .payoff-preview {
+    background: var(--slate);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .payoff-stat { display: flex; flex-direction: column; gap: 3px; }
+  .payoff-label { font-size: 10px; font-family: var(--mono); letter-spacing: 0.07em; color: var(--muted); text-transform: uppercase; }
+  .payoff-value { font-family: var(--mono); font-size: 16px; font-weight: 500; color: var(--text); }
+  .payoff-value.highlight { color: var(--gold); }
+
+  /* ── Reminder toggle ── */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; background: var(--slate); border-radius: 8px;
+    border: 1.5px solid var(--border); cursor: pointer; transition: border-color 0.15s;
+  }
+  .toggle-row:hover { border-color: var(--muted); }
+  .toggle-row.active { border-color: var(--gold); }
+  .toggle-left { display: flex; flex-direction: column; gap: 2px; }
+  .toggle-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .toggle-sub { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+  .toggle-switch {
+    width: 38px; height: 22px; border-radius: 11px; background: var(--border);
+    position: relative; flex-shrink: 0; transition: background 0.2s;
+  }
+  .toggle-switch::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%; background: var(--subtle);
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle-row.active .toggle-switch { background: rgba(201,168,76,0.3); }
+  .toggle-row.active .toggle-switch::after { transform: translateX(16px); background: var(--gold); }
+
+  .modal-footer { padding: 0 24px 24px; display: flex; gap: 10px; }
+  .btn { flex: 1; padding: 11px 16px; border-radius: 8px; font-size: 13.5px; font-family: var(--sans); font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-cancel { background: var(--slate); color: var(--subtle); border: 1.5px solid var(--border); flex: 0 0 auto; padding: 11px 20px; }
+  .btn-cancel:hover { color: var(--text); border-color: var(--muted); }
+  .btn-save { background: var(--gold); color: var(--navy); font-weight: 600; }
+  .btn-save:hover { background: #d9b85c; }
+  .btn-save:disabled { background: var(--muted); color: var(--slate); cursor: not-allowed; }
+
+  /* ── Success state ── */
+  .modal-success {
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 48px 24px; text-align: center;
+  }
+  .success-icon {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: rgba(74,155,142,0.15); border: 1.5px solid var(--sage);
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .success-title { font-size: 15px; font-weight: 600; }
+  .success-sub { font-size: 12.5px; font-family: var(--mono); color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="loanModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle">Add Loan</div>
+        <div class="modal-sub">Track money you owe or money owed to you</div>
+      </div>
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+    </div>
+
+    <!-- Direction: who owes whom -->
+    <div class="direction-tabs">
+      <button class="dir-tab active" data-dir="owe">
+        <span>I Owe This</span>
+        <span class="dt-sub">Mortgage, auto, student, personal</span>
+      </button>
+      <button class="dir-tab" data-dir="owed">
+        <span>Owed To Me</span>
+        <span class="dt-sub">Money you lent to someone</span>
+      </button>
+    </div>
+
+    <div class="modal-body" id="modalBody">
+
+      <!-- Loan type (only relevant when "I Owe This") -->
+      <div class="field" id="fieldLoanType">
+        <label>Loan Type</label>
+        <div class="type-chip-row" id="typeChips">
+          <button class="type-chip" data-type="mortgage">🏠 Mortgage</button>
+          <button class="type-chip" data-type="auto">🚗 Auto</button>
+          <button class="type-chip" data-type="student">🎓 Student</button>
+          <button class="type-chip" data-type="personal">💳 Personal</button>
+          <button class="type-chip" data-type="other">•••  Other</button>
+        </div>
+      </div>
+
+      <!-- Name / Lender or Borrower -->
+      <div class="field-row">
+        <div class="field" id="fieldName">
+          <label for="loanName">Loan Name</label>
+          <input type="text" id="loanName" placeholder="e.g. Honda Civic Loan" autocomplete="off" />
+          <span class="field-error">Please enter a name.</span>
+        </div>
+        <div class="field" id="fieldParty">
+          <label for="party" id="partyLabel">Lender</label>
+          <input type="text" id="party" placeholder="e.g. Chase Bank" autocomplete="off" />
+          <span class="field-error">This field is required.</span>
+        </div>
+      </div>
+
+      <!-- Principal + Current balance -->
+      <div class="field-row">
+        <div class="field" id="fieldPrincipal">
+          <label for="principal">Original Amount ($)</label>
+          <input type="number" id="principal" placeholder="0.00" min="0" step="0.01" />
+          <span class="field-error">Enter the original loan amount.</span>
+        </div>
+        <div class="field" id="fieldBalance">
+          <label for="balance">Current Balance ($)</label>
+          <input type="number" id="balance" placeholder="0.00" min="0" step="0.01" />
+          <span class="field-error">Enter the remaining balance.</span>
+        </div>
+      </div>
+
+      <!-- Rate, payment, frequency (hidden for "Owed to me" simple loans, shown for "I Owe") -->
+      <div class="field-row-3" id="ratePaymentRow">
+        <div class="field" id="fieldRate">
+          <label for="rate">Interest Rate (%)</label>
+          <input type="number" id="rate" placeholder="0.0" min="0" step="0.01" />
+        </div>
+        <div class="field" id="fieldPayment">
+          <label for="payment">Payment ($)</label>
+          <input type="number" id="payment" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="field" id="fieldFrequency">
+          <label for="frequency">Frequency</label>
+          <select id="frequency">
+            <option value="monthly" selected>Monthly</option>
+            <option value="biweekly">Biweekly</option>
+            <option value="weekly">Weekly</option>
+            <option value="onetime">One-time</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Due date -->
+      <div class="field-row">
+        <div class="field">
+          <label for="dueDate">Next Payment Due</label>
+          <input type="date" id="dueDate" />
+        </div>
+        <div class="field">
+          <label for="account">Pay From / To Account</label>
+          <select id="account">
+            <option value="">Select account…</option>
+            <option value="chase-checking">Chase Checking ···4821</option>
+            <option value="amex">Amex ···9210</option>
+            <option value="chase-visa">Chase Visa ···7734</option>
+            <option value="ally-savings">Ally Savings ···3309</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Computed payoff preview -->
+      <div class="payoff-preview" id="payoffPreview" style="display:none">
+        <div class="payoff-stat">
+          <span class="payoff-label">Est. Months Remaining</span>
+          <span class="payoff-value highlight" id="monthsRemaining">—</span>
+        </div>
+        <div class="payoff-stat">
+          <span class="payoff-label">Est. Payoff Date</span>
+          <span class="payoff-value" id="payoffDate">—</span>
+        </div>
+      </div>
+      <div class="field-hint" id="payoffHint" style="display:none">Estimate only — assumes fixed payment, no extra principal payments, simple interest approximation.</div>
+
+      <!-- Reminder toggle -->
+      <div class="field">
+        <label>Payment Reminder</label>
+        <div class="toggle-row" id="reminderToggle">
+          <div class="toggle-left">
+            <span class="toggle-title">Remind me before due date</span>
+            <span class="toggle-sub" id="reminderSubtext">Off</span>
+          </div>
+          <div class="toggle-switch"></div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="field">
+        <label for="notes">Notes <span style="color:var(--muted);font-size:10px">(optional)</span></label>
+        <textarea id="notes" placeholder="Account number, terms, agreement details…" style="min-height:60px"></textarea>
+      </div>
+
+    </div><!-- /modal-body -->
+
+    <!-- Success state -->
+    <div class="modal-success" id="modalSuccess">
+      <div class="success-icon">✓</div>
+      <div class="success-title" id="successTitle">Loan added</div>
+      <div class="success-sub" id="successDetail"></div>
+    </div>
+
+    <div class="modal-footer" id="modalFooter">
+      <button class="btn btn-cancel" id="btnCancel">Cancel</button>
+      <button class="btn btn-save" id="btnSave" disabled>Save Loan</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function() {
+
+  /* ── State ── */
+  let state = {
+    direction: 'owe',     // 'owe' | 'owed'
+    loanType:  null,
+    reminder:  false,
+  };
+
+  /* ── Refs ── */
+  const backdrop      = document.getElementById('modalBackdrop');
+  const modal          = document.getElementById('loanModal');
+  const btnClose       = document.getElementById('modalClose');
+  const btnCancel      = document.getElementById('btnCancel');
+  const btnSave        = document.getElementById('btnSave');
+  const modalTitle     = document.getElementById('modalTitle');
+  const partyLabel     = document.getElementById('partyLabel');
+  const partyInput     = document.getElementById('party');
+  const nameInput      = document.getElementById('loanName');
+  const principalInput = document.getElementById('principal');
+  const balanceInput   = document.getElementById('balance');
+  const rateInput      = document.getElementById('rate');
+  const paymentInput   = document.getElementById('payment');
+  const frequencySel   = document.getElementById('frequency');
+  const dueDateInput   = document.getElementById('dueDate');
+  const accountSel     = document.getElementById('account');
+  const typeChips      = document.getElementById('typeChips');
+  const fieldLoanType  = document.getElementById('fieldLoanType');
+  const ratePaymentRow = document.getElementById('ratePaymentRow');
+  const payoffPreview  = document.getElementById('payoffPreview');
+  const payoffHint     = document.getElementById('payoffHint');
+  const monthsRemaining= document.getElementById('monthsRemaining');
+  const payoffDateEl   = document.getElementById('payoffDate');
+  const reminderToggle = document.getElementById('reminderToggle');
+  const reminderSub    = document.getElementById('reminderSubtext');
+  const modalBody      = document.getElementById('modalBody');
+  const modalSuccess   = document.getElementById('modalSuccess');
+  const modalFooter    = document.getElementById('modalFooter');
+  const successTitle   = document.getElementById('successTitle');
+  const successDetail  = document.getElementById('successDetail');
+
+  /* ── Default due date: 30 days out ── */
+  const defaultDue = new Date();
+  defaultDue.setDate(defaultDue.getDate() + 30);
+  dueDateInput.value = defaultDue.toISOString().split('T')[0];
+
+  /* ── Direction switching ──
+     "I Owe This" shows the full loan-servicing fields (type, rate, payoff).
+     "Owed To Me" simplifies to a basic IOU — most personal loans between
+     people don't carry a formal interest rate or amortization schedule. */
+  document.querySelectorAll('.dir-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.dir-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      state.direction = tab.dataset.dir;
+
+      if (state.direction === 'owe') {
+        modalTitle.textContent = 'Add Loan';
+        partyLabel.textContent = 'Lender';
+        partyInput.placeholder = 'e.g. Chase Bank';
+        fieldLoanType.style.display = '';
+        ratePaymentRow.style.display = '';
+      } else {
+        modalTitle.textContent = 'Add Money Lent';
+        partyLabel.textContent = 'Borrower';
+        partyInput.placeholder = 'e.g. Sam Rivera';
+        fieldLoanType.style.display = 'none';
+        ratePaymentRow.style.display = 'none';
+        state.loanType = null;
+        typeChips.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
+      }
+      updatePayoffPreview();
+      validate();
+    });
+  });
+
+  /* ── Loan type chips ── */
+  typeChips.addEventListener('click', e => {
+    const chip = e.target.closest('.type-chip');
+    if (!chip) return;
+    typeChips.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.loanType = chip.dataset.type;
+  });
+
+  /* ── Reminder toggle ── */
+  reminderToggle.addEventListener('click', () => {
+    state.reminder = !state.reminder;
+    reminderToggle.classList.toggle('active', state.reminder);
+    reminderSub.textContent = state.reminder ? '3 days before due date' : 'Off';
+  });
+
+  /* ── Payoff calculation ──
+     Simple amortization estimate: months = balance / payment, adjusted
+     lightly for interest. This is NOT a precise amortization schedule —
+     it's a directional estimate, labeled honestly as such in the UI. */
+  function updatePayoffPreview() {
+    const balance = parseFloat(balanceInput.value);
+    const payment = parseFloat(paymentInput.value);
+    const rate    = parseFloat(rateInput.value) || 0;
+
+    const showPreview = state.direction === 'owe' && balance > 0 && payment > 0;
+    payoffPreview.style.display = showPreview ? 'grid' : 'none';
+    payoffHint.style.display    = showPreview ? '' : 'none';
+    if (!showPreview) return;
+
+    // Rough estimate accounting for monthly interest accrual
+    const monthlyRate = rate / 100 / 12;
+    let months;
+    if (monthlyRate > 0 && payment > balance * monthlyRate) {
+      months = Math.ceil(
+        -Math.log(1 - (balance * monthlyRate) / payment) / Math.log(1 + monthlyRate)
+      );
+    } else if (monthlyRate === 0) {
+      months = Math.ceil(balance / payment);
+    } else {
+      months = null; // payment too low to ever pay off balance — don't show a misleading number
+    }
+
+    if (!months || !isFinite(months) || months <= 0) {
+      monthsRemaining.textContent = '—';
+      payoffDateEl.textContent = 'Payment too low to pay off';
+      return;
+    }
+
+    monthsRemaining.textContent = months + (months === 1 ? ' month' : ' months');
+    const payoff = new Date();
+    payoff.setMonth(payoff.getMonth() + months);
+    payoffDateEl.textContent = payoff.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
+
+  [balanceInput, paymentInput, rateInput].forEach(el => {
+    el.addEventListener('input', updatePayoffPreview);
+  });
+
+  /* ── Validation ── */
+  function validate() {
+    const nameOk      = nameInput.value.trim().length > 0;
+    const partyOk      = partyInput.value.trim().length > 0;
+    const principalOk  = parseFloat(principalInput.value) > 0;
+    const balanceOk    = balanceInput.value !== '' && parseFloat(balanceInput.value) >= 0;
+
+    btnSave.disabled = !(nameOk && partyOk && principalOk && balanceOk);
+    return { nameOk, partyOk, principalOk, balanceOk };
+  }
+
+  [nameInput, partyInput, principalInput, balanceInput].forEach(el => {
+    el.addEventListener('input', validate);
+  });
+
+  function markField(fieldId, isValid) {
+    const field = document.getElementById(fieldId);
+    if (field) field.classList.toggle('invalid', !isValid);
+  }
+  nameInput.addEventListener('blur', () => markField('fieldName', nameInput.value.trim() !== ''));
+  partyInput.addEventListener('blur', () => markField('fieldParty', partyInput.value.trim() !== ''));
+  principalInput.addEventListener('blur', () => markField('fieldPrincipal', parseFloat(principalInput.value) > 0));
+  balanceInput.addEventListener('blur', () => markField('fieldBalance', balanceInput.value !== ''));
+
+  /* ── Save ── */
+  btnSave.addEventListener('click', () => {
+    const { nameOk, partyOk, principalOk, balanceOk } = validate();
+    markField('fieldName', nameOk);
+    markField('fieldParty', partyOk);
+    markField('fieldPrincipal', principalOk);
+    markField('fieldBalance', balanceOk);
+    if (btnSave.disabled) return;
+
+    const loan = {
+      id:          crypto.randomUUID(),
+      direction:   state.direction,           // 'owe' | 'owed'
+      loanType:    state.direction === 'owe' ? state.loanType : null,
+      name:        nameInput.value.trim(),
+      party:       partyInput.value.trim(),    // lender or borrower
+      principal:   parseFloat(principalInput.value),
+      balance:     parseFloat(balanceInput.value),
+      rate:        state.direction === 'owe' ? (parseFloat(rateInput.value) || 0) : null,
+      payment:     state.direction === 'owe' ? (parseFloat(paymentInput.value) || 0) : null,
+      frequency:   state.direction === 'owe' ? frequencySel.value : null,
+      dueDate:     dueDateInput.value,
+      account:     accountSel.value || null,
+      reminder:    state.reminder,
+      notes:       document.getElementById('notes').value.trim(),
+      createdAt:   new Date().toISOString(),
+    };
+
+    if (typeof window.LoanModal?.onSave === 'function') {
+      window.LoanModal.onSave(loan);
+    }
+    console.log('[LoanModal] Saved:', loan);
+
+    const verb = loan.direction === 'owe' ? 'You owe' : 'Owed to you';
+    successTitle.textContent = loan.direction === 'owe' ? 'Loan added' : 'Lending recorded';
+    successDetail.textContent = `${verb}: $${loan.balance.toFixed(2)} · ${loan.name}`;
+    modalBody.style.display = 'none';
+    modalFooter.style.display = 'none';
+    modalSuccess.style.display = 'flex';
+
+    setTimeout(() => closeModal(), 1800);
+  });
+
+  /* ── Close ── */
+  function closeModal() {
+    modal.style.animation = 'none';
+    backdrop.style.opacity = '0';
+    backdrop.style.transition = 'opacity 0.15s';
+    setTimeout(() => {
+      backdrop.style.display = 'none';
+      if (typeof window.LoanModal?.onClose === 'function') {
+        window.LoanModal.onClose();
+      }
+    }, 150);
+  }
+
+  btnClose.addEventListener('click', closeModal);
+  btnCancel.addEventListener('click', closeModal);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  /* ── Public API ── */
+  window.LoanModal = {
+    open() {
+      backdrop.style.display = 'flex';
+      backdrop.style.opacity = '';
+      modalBody.style.display = '';
+      modalFooter.style.display = '';
+      modalSuccess.style.display = 'none';
+      nameInput.focus();
+    },
+    close: closeModal,
+    onSave: null,
+    onClose: null,
+  };
+
+})();
+</script>
+</body>
+</html>
