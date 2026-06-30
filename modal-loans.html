@@ -124,6 +124,72 @@
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
+  /* ── Loan currency selector ──
+     One currency covers the whole loan (principal, balance, payment) —
+     real loans aren't denominated in multiple currencies at once. This
+     reuses the picker pattern from modal-add-transaction.html, with the
+     z-index bug from that build already fixed here (picker backdrop must
+     exceed the modal's own z-index of 100). */
+  .loan-currency-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--slate);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    position: relative;
+  }
+  .loan-currency-label { font-size: 12px; color: var(--subtle); }
+  .loan-currency-badge {
+    display: flex; align-items: center; gap: 4px;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 7px;
+    border: 1.5px solid var(--border);
+    background: var(--panel);
+    transition: border-color 0.15s;
+  }
+  .loan-currency-badge:hover { border-color: var(--muted); }
+  .loan-currency-code { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); }
+  .loan-currency-caret { font-size: 9px; color: var(--muted); }
+
+  .loan-currency-picker-backdrop {
+    position: fixed; inset: 0; z-index: 150;
+    display: none;
+  }
+  .loan-currency-picker-backdrop.open { display: block; }
+  .loan-currency-picker {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 14px;
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    width: 200px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+    z-index: 160;
+    overflow: hidden;
+  }
+  .loan-currency-option {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 14px;
+    cursor: pointer;
+    transition: background 0.12s;
+    border-bottom: 1px solid var(--border);
+  }
+  .loan-currency-option:last-child { border-bottom: none; }
+  .loan-currency-option:hover { background: var(--slate); }
+  .loan-currency-option.selected { background: rgba(201,168,76,0.1); }
+  .loan-currency-option-code { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); }
+  .loan-currency-option-name { font-size: 11px; color: var(--muted); }
+  .loan-currency-option-check { color: var(--gold); font-size: 13px; }
+
+  .loan-converted-hint {
+    font-size: 11px; font-family: var(--mono); color: var(--muted);
+    margin-top: 4px; min-height: 14px;
+  }
+  .loan-converted-hint.loading { color: var(--gold); }
+  .loan-converted-hint.error { color: var(--red); }
+
   label {
     font-size: 11px; font-family: var(--mono); letter-spacing: 0.08em;
     color: var(--muted); text-transform: uppercase;
@@ -286,15 +352,37 @@
         </div>
       </div>
 
+      <!-- Currency — applies to principal, balance, and payment together -->
+      <div class="loan-currency-row">
+        <span class="loan-currency-label">Loan Currency</span>
+        <div class="loan-currency-badge" id="loanCurrencyBadge">
+          <span class="loan-currency-code" id="loanCurrencyCode">MVR</span>
+          <span class="loan-currency-caret">▾</span>
+        </div>
+        <div class="loan-currency-picker-backdrop" id="loanCurrencyPickerBackdrop">
+          <div class="loan-currency-picker" id="loanCurrencyPicker">
+            <div class="loan-currency-option selected" data-code="MVR" data-name="Maldivian Rufiyaa">
+              <div><div class="loan-currency-option-code">MVR</div><div class="loan-currency-option-name">Maldivian Rufiyaa</div></div>
+              <span class="loan-currency-option-check">✓</span>
+            </div>
+            <div class="loan-currency-option" data-code="USD" data-name="US Dollar">
+              <div><div class="loan-currency-option-code">USD</div><div class="loan-currency-option-name">US Dollar</div></div>
+              <span class="loan-currency-option-check" style="visibility:hidden">✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="loan-converted-hint" id="loanConvertedHint"></div>
+
       <!-- Principal + Current balance -->
       <div class="field-row">
         <div class="field" id="fieldPrincipal">
-          <label for="principal">Original Amount (MVR)</label>
+          <label for="principal" id="principalLabel">Original Amount (MVR)</label>
           <input type="number" id="principal" placeholder="0.00" min="0" step="0.01" />
           <span class="field-error">Enter the original loan amount.</span>
         </div>
         <div class="field" id="fieldBalance">
-          <label for="balance">Current Balance (MVR)</label>
+          <label for="balance" id="balanceLabel">Current Balance (MVR)</label>
           <input type="number" id="balance" placeholder="0.00" min="0" step="0.01" />
           <span class="field-error">Enter the remaining balance.</span>
         </div>
@@ -307,7 +395,7 @@
           <input type="number" id="rate" placeholder="0.0" min="0" step="0.01" />
         </div>
         <div class="field" id="fieldPayment">
-          <label for="payment">Payment (MVR)</label>
+          <label for="payment" id="paymentLabel">Payment (MVR)</label>
           <input type="number" id="payment" placeholder="0.00" min="0" step="0.01" />
         </div>
         <div class="field" id="fieldFrequency">
@@ -395,6 +483,7 @@
     direction: 'owe',     // 'owe' | 'owed'
     loanType:  null,
     reminder:  false,
+    currency:  'MVR',
   };
 
   /* ── Refs ── */
@@ -428,11 +517,95 @@
   const modalFooter    = document.getElementById('modalFooter');
   const successTitle   = document.getElementById('successTitle');
   const successDetail  = document.getElementById('successDetail');
+  const loanCurrencyBadge   = document.getElementById('loanCurrencyBadge');
+  const loanCurrencyCode    = document.getElementById('loanCurrencyCode');
+  const loanCurrencyPickerBackdrop = document.getElementById('loanCurrencyPickerBackdrop');
+  const loanCurrencyPicker  = document.getElementById('loanCurrencyPicker');
+  const loanConvertedHint   = document.getElementById('loanConvertedHint');
+  const principalLabel = document.getElementById('principalLabel');
+  const balanceLabel   = document.getElementById('balanceLabel');
+  const paymentLabel   = document.getElementById('paymentLabel');
 
   /* ── Default due date: 30 days out ── */
   const defaultDue = new Date();
   defaultDue.setDate(defaultDue.getDate() + 30);
   dueDateInput.value = defaultDue.toISOString().split('T')[0];
+
+  /* ════════════════════════════════════════
+     CURRENCY PICKER + LIVE CONVERSION
+     One currency covers principal, balance, and payment together — a
+     loan isn't denominated in multiple currencies. Uses the same free
+     keyless API as the transaction modal (fawazahmed0/exchange-api via
+     jsDelivr). Today's rate only, not historical — same honest caveat
+     as the transaction modal.
+     ════════════════════════════════════════ */
+  let loanExchangeRate = null;     // MVR per 1 unit of selected currency, once fetched
+  let loanConversionToken = 0;
+
+  loanCurrencyBadge.addEventListener('click', () => {
+    loanCurrencyPickerBackdrop.classList.add('open');
+  });
+  loanCurrencyPickerBackdrop.addEventListener('click', (e) => {
+    if (e.target === loanCurrencyPickerBackdrop) loanCurrencyPickerBackdrop.classList.remove('open');
+  });
+
+  loanCurrencyPicker.addEventListener('click', async (e) => {
+    const opt = e.target.closest('.loan-currency-option');
+    if (!opt) return;
+
+    loanCurrencyPicker.querySelectorAll('.loan-currency-option').forEach(o => {
+      o.classList.remove('selected');
+      o.querySelector('.loan-currency-option-check').style.visibility = 'hidden';
+    });
+    opt.classList.add('selected');
+    opt.querySelector('.loan-currency-option-check').style.visibility = 'visible';
+
+    state.currency = opt.dataset.code;
+    loanCurrencyCode.textContent = state.currency;
+    loanCurrencyPickerBackdrop.classList.remove('open');
+
+    principalLabel.textContent = `Original Amount (${state.currency})`;
+    balanceLabel.textContent   = `Current Balance (${state.currency})`;
+    paymentLabel.textContent   = `Payment (${state.currency})`;
+
+    await fetchLoanRate();
+    validate();
+  });
+
+  async function fetchLoanRate() {
+    if (state.currency === 'MVR') {
+      loanExchangeRate = null;
+      loanConvertedHint.textContent = '';
+      loanConvertedHint.className = 'loan-converted-hint';
+      return;
+    }
+
+    const thisFetch = ++loanConversionToken;
+    loanConvertedHint.textContent = 'Fetching exchange rate...';
+    loanConvertedHint.className = 'loan-converted-hint loading';
+
+    try {
+      const code = state.currency.toLowerCase();
+      const res = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${code}.json`);
+      if (!res.ok) throw new Error('Network response not OK');
+      const data = await res.json();
+
+      if (thisFetch !== loanConversionToken) return;
+
+      const rate = data[code]?.mvr;
+      if (!rate) throw new Error('MVR rate not found in response');
+
+      loanExchangeRate = rate;
+      loanConvertedHint.textContent = `Rate: 1 ${state.currency} = MVR ${rate.toFixed(4)} · today's rate`;
+      loanConvertedHint.className = 'loan-converted-hint';
+    } catch (err) {
+      if (thisFetch !== loanConversionToken) return;
+      loanExchangeRate = null;
+      loanConvertedHint.textContent = 'Couldn\'t fetch exchange rate — check connection';
+      loanConvertedHint.className = 'loan-converted-hint error';
+      console.error('[LoanModal] Currency conversion failed:', err);
+    }
+  }
 
   /* ── Direction switching ──
      "I Owe This" shows the full loan-servicing fields (type, rate, payoff).
@@ -523,14 +696,19 @@
     el.addEventListener('input', updatePayoffPreview);
   });
 
-  /* ── Validation ── */
+  /* ── Validation ──
+     For non-MVR loans, a successful rate fetch is required before saving
+     — same principle as the transaction modal: never save a money value
+     with no known MVR equivalent, since budget/dashboard math downstream
+     assumes everything is reducible to MVR. */
   function validate() {
     const nameOk      = nameInput.value.trim().length > 0;
     const partyOk      = partyInput.value.trim().length > 0;
     const principalOk  = parseFloat(principalInput.value) > 0;
     const balanceOk    = balanceInput.value !== '' && parseFloat(balanceInput.value) >= 0;
+    const currencyOk   = state.currency === 'MVR' || loanExchangeRate !== null;
 
-    btnSave.disabled = !(nameOk && partyOk && principalOk && balanceOk);
+    btnSave.disabled = !(nameOk && partyOk && principalOk && balanceOk && currencyOk);
     return { nameOk, partyOk, principalOk, balanceOk };
   }
 
@@ -547,7 +725,12 @@
   principalInput.addEventListener('blur', () => markField('fieldPrincipal', parseFloat(principalInput.value) > 0));
   balanceInput.addEventListener('blur', () => markField('fieldBalance', balanceInput.value !== ''));
 
-  /* ── Save ── */
+  /* ── Save ──
+     principal/balance/payment are stored as MVR-equivalent values for
+     consistency with how transactions work — anything downstream that
+     sums money (e.g. a future net-worth or debt-total view) needs a
+     single unit. originalCurrency + the three original*Amount fields
+     preserve what was actually entered, for honest display. */
   btnSave.addEventListener('click', () => {
     const { nameOk, partyOk, principalOk, balanceOk } = validate();
     markField('fieldName', nameOk);
@@ -556,16 +739,25 @@
     markField('fieldBalance', balanceOk);
     if (btnSave.disabled) return;
 
+    const rawPrincipal = parseFloat(principalInput.value);
+    const rawBalance   = parseFloat(balanceInput.value);
+    const rawPayment   = state.direction === 'owe' ? (parseFloat(paymentInput.value) || 0) : null;
+    const rate = state.currency === 'MVR' ? 1 : loanExchangeRate;
+
     const loan = {
       id:          crypto.randomUUID(),
       direction:   state.direction,           // 'owe' | 'owed'
       loanType:    state.direction === 'owe' ? state.loanType : null,
       name:        nameInput.value.trim(),
       party:       partyInput.value.trim(),    // lender or borrower
-      principal:   parseFloat(principalInput.value),
-      balance:     parseFloat(balanceInput.value),
+      principal:   rawPrincipal * rate,
+      balance:     rawBalance * rate,
+      payment:     rawPayment !== null ? rawPayment * rate : null,
+      originalCurrency:      state.currency,
+      originalPrincipal:     rawPrincipal,
+      originalBalance:       rawBalance,
+      originalPayment:       rawPayment,
       rate:        state.direction === 'owe' ? (parseFloat(rateInput.value) || 0) : null,
-      payment:     state.direction === 'owe' ? (parseFloat(paymentInput.value) || 0) : null,
       frequency:   state.direction === 'owe' ? frequencySel.value : null,
       dueDate:     dueDateInput.value,
       account:     accountSel.value || null,
@@ -580,8 +772,11 @@
     console.log('[LoanModal] Saved:', loan);
 
     const verb = loan.direction === 'owe' ? 'You owe' : 'Owed to you';
+    const origNote = loan.originalCurrency !== 'MVR'
+      ? ` (${loan.originalCurrency} ${loan.originalBalance.toFixed(2)})`
+      : '';
     successTitle.textContent = loan.direction === 'owe' ? 'Loan added' : 'Lending recorded';
-    successDetail.textContent = `${verb}: $${loan.balance.toFixed(2)} · ${loan.name}`;
+    successDetail.textContent = `${verb}: MVR ${loan.balance.toFixed(2)}${origNote} · ${loan.name}`;
     modalBody.style.display = 'none';
     modalFooter.style.display = 'none';
     modalSuccess.style.display = 'flex';

@@ -207,9 +207,12 @@
   .converted-hint.loading { color: var(--gold); }
   .converted-hint.error { color: var(--red); }
 
-  /* ── Currency picker dropdown ── */
+  /* ── Currency picker dropdown ──
+     z-index must exceed the modal backdrop's (100) — these values were
+     originally lower (50/60), which put the picker behind the modal's
+     own stacking context and made it effectively unclickable. */
   .currency-picker-backdrop {
-    position: fixed; inset: 0; z-index: 50;
+    position: fixed; inset: 0; z-index: 150;
     display: none;
   }
   .currency-picker-backdrop.open { display: block; }
@@ -223,7 +226,7 @@
     border-radius: 10px;
     width: 220px;
     box-shadow: 0 12px 32px rgba(0,0,0,0.4);
-    z-index: 60;
+    z-index: 160;
     overflow: hidden;
   }
   .currency-option {

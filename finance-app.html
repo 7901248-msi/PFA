@@ -302,13 +302,16 @@
       const emoji = owe ? (typeEmoji[loan.loanType] || '💳') : '🤝';
       const accent = owe ? 'var(--red)' : 'var(--sage)';
       const pct = loan.principal > 0 ? Math.round(((loan.principal - loan.balance) / loan.principal) * 100) : 0;
+      const origNote = loan.originalCurrency && loan.originalCurrency !== 'MVR'
+        ? ` · ${loan.originalCurrency} ${loan.originalBalance.toFixed(2)}`
+        : '';
 
       return `
         <div class="card card-sm" style="display:flex;align-items:center;gap:14px">
           <div class="tx-icon" style="background:${owe ? 'rgba(224,82,82,0.12)' : 'rgba(74,155,142,0.12)'};flex-shrink:0">${emoji}</div>
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:600;color:var(--text)">${escHtml(loan.name)}</div>
-            <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted);margin-top:2px">${owe ? 'Owed to' : 'Owed by'} ${escHtml(loan.party)}${loan.rate ? ` · ${loan.rate}% APR` : ''}</div>
+            <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted);margin-top:2px">${owe ? 'Owed to' : 'Owed by'} ${escHtml(loan.party)}${loan.rate ? ` · ${loan.rate}% APR` : ''}${origNote}</div>
           </div>
           <div style="text-align:right">
             <div style="font-family:var(--mono);font-size:15px;font-weight:500;color:${accent}">MVR ${loan.balance.toFixed(2)}</div>
