@@ -27,18 +27,18 @@
   <div class="summary-grid">
     <div class="card summary-card net-worth">
       <div class="summary-label">Net Worth</div>
-      <div class="summary-value">$84,320.50</div>
-      <div class="summary-delta delta-up">↑ 4.2% vs last month</div>
+      <div class="summary-value" id="netWorthValue">$84,320.50</div>
+      <div class="summary-delta delta-up" id="netWorthDelta">Base accounts: $84,320.50</div>
     </div>
     <div class="card summary-card income">
       <div class="summary-label">Monthly Income</div>
-      <div class="summary-value">$6,500.00</div>
-      <div class="summary-delta delta-up">↑ $200 from salary adj.</div>
+      <div class="summary-value" id="incomeValue">$0.00</div>
+      <div class="summary-delta delta-up" id="incomeDelta">From transactions added</div>
     </div>
     <div class="card summary-card expenses">
       <div class="summary-label">Monthly Spend</div>
-      <div class="summary-value">$3,812.44</div>
-      <div class="summary-delta delta-down">↑ 12% vs last month</div>
+      <div class="summary-value" id="expenseValue">$0.00</div>
+      <div class="summary-delta delta-down" id="expenseDelta">From transactions added</div>
     </div>
   </div>
 
@@ -97,27 +97,21 @@
         <div class="ring-chart">
           <svg width="110" height="110" viewBox="0 0 120 120">
             <circle cx="60" cy="60" r="50" fill="none" stroke="#243447" stroke-width="10"/>
-            <circle cx="60" cy="60" r="50" fill="none" stroke="#E05252" stroke-width="10" stroke-dasharray="314" stroke-dashoffset="130" stroke-linecap="round"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#E05252" stroke-width="10" stroke-dasharray="314" stroke-dashoffset="130" stroke-linecap="round" id="budgetRingArc"/>
           </svg>
-          <div class="ring-center"><span class="ring-pct">58%</span><span class="ring-sub">used</span></div>
+          <div class="ring-center"><span class="ring-pct" id="budgetRingPct">0%</span><span class="ring-sub">used</span></div>
         </div>
         <div class="budget-details">
-          <div class="budget-row"><span class="budget-key"><span class="budget-swatch" style="background:var(--sage)"></span>Budget</span><span class="budget-amt">$6,500.00</span></div>
-          <div class="budget-row"><span class="budget-key"><span class="budget-swatch" style="background:var(--red)"></span>Spent</span><span class="budget-amt">$3,812.44</span></div>
-          <div class="budget-row"><span class="budget-key"><span class="budget-swatch" style="background:var(--border)"></span>Remaining</span><span class="budget-amt" style="color:var(--sage)">$2,687.56</span></div>
+          <div class="budget-row"><span class="budget-key"><span class="budget-swatch" style="background:var(--sage)"></span>Budget</span><span class="budget-amt" id="budgetTotalAmt">$6,500.00</span></div>
+          <div class="budget-row"><span class="budget-key"><span class="budget-swatch" style="background:var(--red)"></span>Spent</span><span class="budget-amt" id="budgetSpentAmt">$0.00</span></div>
+          <div class="budget-row"><span class="budget-key"><span class="budget-swatch" style="background:var(--border)"></span>Remaining</span><span class="budget-amt" style="color:var(--sage)" id="budgetRemainingAmt">$6,500.00</span></div>
         </div>
       </div>
     </div>
 
     <div class="card card-sm">
       <div class="section-header" style="margin-bottom:16px"><span class="section-title">Spending by Category</span></div>
-      <div class="breakdown-list">
-        <div class="breakdown-item"><div class="breakdown-top"><span class="breakdown-cat">Housing</span><span class="breakdown-val">$1,850 · 48%</span></div><div class="bar-track"><div class="bar-fill" style="width:48%;background:var(--gold)"></div></div></div>
-        <div class="breakdown-item"><div class="breakdown-top"><span class="breakdown-cat">Food & Dining</span><span class="breakdown-val">$568 · 15%</span></div><div class="bar-track"><div class="bar-fill" style="width:15%;background:var(--sage)"></div></div></div>
-        <div class="breakdown-item"><div class="breakdown-top"><span class="breakdown-cat">Transport</span><span class="breakdown-val">$320 · 8%</span></div><div class="bar-track"><div class="bar-fill" style="width:8%;background:#5B8DD9"></div></div></div>
-        <div class="breakdown-item"><div class="breakdown-top"><span class="breakdown-cat">Subscriptions</span><span class="breakdown-val">$142 · 4%</span></div><div class="bar-track"><div class="bar-fill" style="width:4%;background:#9B6B9E"></div></div></div>
-        <div class="breakdown-item"><div class="breakdown-top"><span class="breakdown-cat">Other</span><span class="breakdown-val">$932 · 25%</span></div><div class="bar-track"><div class="bar-fill" style="width:25%;background:var(--muted)"></div></div></div>
-      </div>
+      <div class="breakdown-list" id="breakdownList"></div>
     </div>
 
     <div class="card">
@@ -137,17 +131,17 @@
     <div class="accounts-stack">
       <div class="card card-sm">
         <div class="summary-label" style="margin-bottom:10px">Checking — Chase ···4821</div>
-        <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--text);margin-bottom:3px">$12,440.20</div>
+        <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--text);margin-bottom:3px" id="acctChecking">$12,440.20</div>
         <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">Available balance</div>
       </div>
       <div class="card card-sm">
         <div class="summary-label" style="margin-bottom:10px">Savings — Ally ···3309</div>
-        <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--sage);margin-bottom:3px">$31,200.00</div>
+        <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--sage);margin-bottom:3px" id="acctSavings">$31,200.00</div>
         <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">4.85% APY · HYSA</div>
       </div>
       <div class="card card-sm">
         <div class="summary-label" style="margin-bottom:10px">Investment — Fidelity</div>
-        <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--gold);margin-bottom:3px">$40,680.30</div>
+        <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--gold);margin-bottom:3px" id="acctInvestment">$40,680.30</div>
         <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">↑ $1,230 this month</div>
       </div>
     </div>
@@ -162,54 +156,167 @@
     document.getElementById('alertBanner').style.display = 'none';
   });
 
-  requestAnimationFrame(() => {
-    document.querySelectorAll('.bar-fill').forEach(bar => {
-      const w = bar.style.width;
-      bar.style.width = '0';
-      setTimeout(() => { bar.style.width = w; }, 100);
-    });
-  });
-
   function escHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  /* ── Add a new transaction row to the live list ──
-     Called by the shell (finance-app.html) via the public API below,
-     after modal-add-transaction.html reports a save. This page owns
-     its own DOM, so the shell never reaches in directly. */
+  /* ════════════════════════════════════════
+     LIVE DASHBOARD STATE
+     Previously every summary card, the budget
+     ring, and the category breakdown were
+     hardcoded demo values that never changed.
+     This block makes them derive from actual
+     transactions added during the session.
+
+     Known limitation, stated plainly: account
+     balances (Checking/Savings/Investment) are
+     fixed base numbers, not adjusted per-transaction
+     by account — there's no real ledger-to-account
+     posting yet. Net worth = base accounts + income
+     added − expenses added this session. This is an
+     approximation, not full double-entry accounting.
+     ════════════════════════════════════════ */
+  const BASE_ACCOUNTS_TOTAL = 12440.20 + 31200.00 + 40680.30; // Checking + Savings + Investment
+  const MONTHLY_BUDGET = 6500.00; // matches the assumption used in page-budgets.html
+
+  // Track only what's been added live this session — the 7 seeded demo
+  // transactions are NOT included here, since their $3,812.44 / category
+  // split was a hand-picked mockup number, not derived from the rows
+  // actually rendered. Mixing fabricated and real totals would make the
+  // displayed figures meaningless. Going forward this starts at zero and
+  // grows only from real entries.
+  let sessionIncome = 0;
+  let sessionExpenses = 0;
+  let categoryTotals = {}; // { housing: 1850, food: 320, ... } — expenses only
+
+  const CATEGORY_LABELS = {
+    housing: 'Housing', food: 'Food', dining: 'Dining', transport: 'Transport',
+    health: 'Health', subscriptions: 'Subscriptions', utilities: 'Utilities',
+    shopping: 'Shopping', travel: 'Travel', other: 'Other',
+  };
+  const CATEGORY_COLORS = {
+    housing: 'var(--gold)', food: 'var(--sage)', dining: '#E08A7A',
+    transport: '#5B8DD9', health: 'var(--red)', subscriptions: '#9B6B9E',
+    utilities: '#D4854A', shopping: '#6FA8DC', travel: '#4FB8A8',
+    other: 'var(--muted)',
+  };
+
+  function formatMoney(n) {
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function recalculate() {
+    const netWorth = BASE_ACCOUNTS_TOTAL + sessionIncome - sessionExpenses;
+    document.getElementById('netWorthValue').textContent = formatMoney(netWorth);
+    document.getElementById('netWorthDelta').textContent =
+      sessionIncome || sessionExpenses
+        ? `Base $${BASE_ACCOUNTS_TOTAL.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} + this session's activity`
+        : `Base accounts: ${formatMoney(BASE_ACCOUNTS_TOTAL)}`;
+
+    document.getElementById('incomeValue').textContent = formatMoney(sessionIncome);
+    document.getElementById('expenseValue').textContent = formatMoney(sessionExpenses);
+
+    // Budget ring: spent vs MONTHLY_BUDGET, same $6,500 assumption page-budgets.html uses
+    const pct = MONTHLY_BUDGET > 0 ? Math.min(100, Math.round((sessionExpenses / MONTHLY_BUDGET) * 100)) : 0;
+    const remaining = MONTHLY_BUDGET - sessionExpenses;
+    document.getElementById('budgetRingPct').textContent = pct + '%';
+    document.getElementById('budgetSpentAmt').textContent = formatMoney(sessionExpenses);
+    document.getElementById('budgetRemainingAmt').textContent = formatMoney(Math.max(0, remaining));
+
+    // SVG ring: circumference 314 (r=50), offset moves clockwise as % grows
+    const circumference = 314;
+    const offset = circumference - (circumference * pct / 100);
+    document.getElementById('budgetRingArc').style.strokeDashoffset = offset;
+
+    renderBreakdown();
+  }
+
+  function renderBreakdown() {
+    const listEl = document.getElementById('breakdownList');
+    const entries = Object.entries(categoryTotals).filter(([, amt]) => amt > 0);
+
+    if (entries.length === 0) {
+      listEl.innerHTML = `<div style="font-size:12px;font-family:var(--mono);color:var(--muted);text-align:center;padding:12px 0">No expenses added yet this session</div>`;
+      return;
+    }
+
+    const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
+    entries.sort((a, b) => b[1] - a[1]); // largest category first
+
+    listEl.innerHTML = entries.map(([cat, amt]) => {
+      const pct = total > 0 ? Math.round((amt / total) * 100) : 0;
+      const label = CATEGORY_LABELS[cat] || cat;
+      const color = CATEGORY_COLORS[cat] || 'var(--muted)';
+      return `
+        <div class="breakdown-item">
+          <div class="breakdown-top">
+            <span class="breakdown-cat">${escHtml(label)}</span>
+            <span class="breakdown-val">${formatMoney(amt)} · ${pct}%</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        </div>`;
+    }).join('');
+
+    requestAnimationFrame(() => {
+      listEl.querySelectorAll('.bar-fill').forEach(bar => {
+        const w = bar.style.width;
+        bar.style.width = '0';
+        setTimeout(() => { bar.style.width = w; }, 80);
+      });
+    });
+  }
+
+  /* ── Add a new transaction: append to the list AND update all
+     derived figures (net worth, income/spend totals, budget ring,
+     category breakdown). Previously this function only touched the
+     DOM list and left every summary number frozen at demo values. ── */
   function addTransaction(tx) {
     const list = document.getElementById('txList');
-    if (!list) return;
+    if (list) {
+      const categoryEmoji = {
+        housing: '🏠', food: '🛒', dining: '🍕', transport: '🚗',
+        health: '💊', subscriptions: '🎵', salary: '💼', investment: '📈',
+        utilities: '⚡', shopping: '🛍️', travel: '✈️', other: '•••',
+      };
+      const emoji = categoryEmoji[tx.category] || '💳';
+      const isCredit = tx.type === 'income';
+      const isTransfer = tx.type === 'transfer';
+      const sign = isCredit ? '+' : isTransfer ? '⇄' : '−';
+      const cls  = isCredit ? 'credit' : 'debit';
+      const iconBg = isCredit ? 'rgba(74,155,142,0.15)' : isTransfer ? 'rgba(201,168,76,0.12)' : 'rgba(58,80,104,0.4)';
+      const acctLabel = tx.type === 'transfer' ? `${tx.fromAccount} → ${tx.toAccount}` : tx.account || 'Unknown account';
 
-    const categoryEmoji = {
-      housing: '🏠', food: '🛒', dining: '🍕', transport: '🚗',
-      health: '💊', subscriptions: '🎵', salary: '💼', investment: '📈',
-      utilities: '⚡', shopping: '🛍️', travel: '✈️', other: '•••',
-    };
-    const emoji = categoryEmoji[tx.category] || '💳';
-    const isCredit = tx.type === 'income';
-    const isTransfer = tx.type === 'transfer';
-    const sign = isCredit ? '+' : isTransfer ? '⇄' : '−';
-    const cls  = isCredit ? 'credit' : 'debit';
-    const iconBg = isCredit ? 'rgba(74,155,142,0.15)' : isTransfer ? 'rgba(201,168,76,0.12)' : 'rgba(58,80,104,0.4)';
-    const acctLabel = tx.type === 'transfer' ? `${tx.fromAccount} → ${tx.toAccount}` : tx.account || 'Unknown account';
+      const row = document.createElement('div');
+      row.className = 'tx-row';
+      row.style.animation = 'tx-appear 0.25s ease';
+      row.innerHTML = `
+        <div class="tx-icon" style="background:${iconBg}">${emoji}</div>
+        <div class="tx-info"><div class="tx-name">${escHtml(tx.description)}</div><div class="tx-meta">${tx.date} · ${escHtml(acctLabel)}</div></div>
+        <div class="tx-amount ${cls}">${sign}$${tx.amount.toFixed(2)}</div>
+      `;
+      list.prepend(row);
+    }
 
-    const row = document.createElement('div');
-    row.className = 'tx-row';
-    row.style.animation = 'tx-appear 0.25s ease';
-    row.innerHTML = `
-      <div class="tx-icon" style="background:${iconBg}">${emoji}</div>
-      <div class="tx-info"><div class="tx-name">${escHtml(tx.description)}</div><div class="tx-meta">${tx.date} · ${escHtml(acctLabel)}</div></div>
-      <div class="tx-amount ${cls}">${sign}$${tx.amount.toFixed(2)}</div>
-    `;
-    list.prepend(row);
+    // Update derived totals
+    if (tx.type === 'income') {
+      sessionIncome += tx.amount;
+    } else if (tx.type === 'expense') {
+      sessionExpenses += tx.amount;
+      const cat = tx.category || 'other';
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + tx.amount;
+    }
+    // Transfers don't affect net worth, income, or expense totals —
+    // money is moving between your own accounts, not entering/leaving.
+
+    recalculate();
   }
 
   /* ── Public API — mirrors the BudgetPage pattern in page-budgets.html ── */
   window.DashboardPage = {
     addTransaction,
   };
+
+  recalculate(); // initial paint with zeroed session totals
 
 })();
 </script>
