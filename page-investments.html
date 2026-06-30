@@ -239,7 +239,7 @@
         </div>
         <div class="field" id="fieldRate">
           <label for="entryRate" id="entryRateLabel">Rate (USD)</label>
-          <input type="number" id="entryRate" placeholder="0.00" min="0" step="0.01" />
+          <input type="number" id="entryRate" placeholder="0.00" min="0" step="any" />
           <span class="field-error">Enter the price per unit.</span>
         </div>
       </div>
@@ -620,7 +620,7 @@
       <div class="entry-row">
         <span class="entry-side-tag ${entry.side}">${entry.side}</span>
         <div class="entry-detail">
-          <div class="entry-qty-rate">${entry.qty.toLocaleString('en-US',{maximumFractionDigits:8})} @ ${holding.currency} ${entry.rate.toFixed(2)}</div>
+          <div class="entry-qty-rate">${entry.qty.toLocaleString('en-US',{maximumFractionDigits:8})} @ ${holding.currency} ${entry.rate.toLocaleString('en-US',{maximumFractionDigits:8})}</div>
           <div class="entry-date">${entry.date}${entry.notes ? ' · ' + escHtml(entry.notes) : ''}</div>
         </div>
         <div class="entry-total">${holding.currency} ${(entry.qty * entry.rate).toFixed(2)}</div>
