@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Vault — Accounts</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body { min-height: 100vh; }
+
+  .account-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+
+  .account-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 18px; cursor: pointer; transition: border-color 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .account-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; }
+  .account-card.checking::before   { background: var(--text); }
+  .account-card.savings::before    { background: var(--sage); }
+  .account-card.investment::before { background: var(--gold); }
+  .account-card.credit::before     { background: var(--red); }
+  .account-card.cash::before       { background: #7EB87E; }
+  .account-card.wallet::before     { background: #9B6B9E; }
+  .account-card.other::before      { background: var(--muted); }
+
+  .account-card:active { border-color: var(--muted); }
+  .account-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+  .account-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .account-meta { font-size: 11px; font-family: var(--mono); color: var(--muted); margin-top: 2px; }
+  .account-balance { text-align: right; }
+  .account-balance-value { font-family: var(--mono); font-size: 18px; font-weight: 500; }
+  .account-balance-label { font-size: 10px; font-family: var(--mono); color: var(--muted); margin-top: 2px; }
+  .balance-positive { color: var(--text); }
+  .balance-negative { color: var(--red); }
+  .balance-savings { color: var(--sage); }
+  .balance-investment { color: var(--gold); }
+
+  .account-footer { display: flex; align-items: center; justify-content: space-between; }
+  .account-adj-count { font-size: 10.5px; font-family: var(--mono); color: var(--muted); }
+  .account-actions { display: flex; gap: 6px; }
+  .action-btn {
+    width: 26px; height: 26px; border-radius: 6px;
+    border: 1.5px solid var(--border); background: transparent;
+    color: var(--muted); font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.12s;
+  }
+  .action-btn:hover { background: var(--slate); color: var(--text); border-color: var(--muted); }
+  .action-btn.del:hover { border-color: var(--red); color: var(--red); }
+
+  .add-account-card {
+    background: transparent; border: 1.5px dashed var(--border); border-radius: var(--radius);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    padding: 24px; cursor: pointer; transition: all 0.15s; color: var(--muted);
+  }
+  .add-account-card:active { border-color: var(--gold); color: var(--gold); }
+  .add-account-card .plus { font-size: 20px; }
+  .add-account-card .add-label { font-size: 13px; font-weight: 500; }
+
+  /* Modals */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(5,12,20,0.75);
+    backdrop-filter: blur(3px); display: none; align-items: center; justify-content: center;
+    z-index: 50; padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    width: 100%; max-width: 420px; max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5); animation: slide-up 0.18s ease;
+  }
+  @keyframes slide-up { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 0; }
+  .modal-title { font-size: 14px; font-weight: 600; }
+  .modal-sub { font-size: 11px; font-family: var(--mono); color: var(--muted); margin-top: 2px; }
+  .modal-close {
+    width: 28px; height: 28px; border-radius: 7px; border: none; background: var(--slate);
+    color: var(--subtle); cursor: pointer; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-close:hover { background: var(--border); color: var(--text); }
+  .modal-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 11px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%; background: var(--slate); border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 13.5px; font-family: var(--sans); color: var(--text);
+    outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+  input::placeholder, textarea::placeholder { color: var(--muted); }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238BA3B8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer;
+  }
+  select option { background: var(--slate); }
+  .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field-hint { font-size: 10.5px; font-family: var(--mono); color: var(--muted); }
+  .field-error { font-size: 11px; font-family: var(--mono); color: var(--red); display: none; }
+  .field.invalid input { border-color: var(--red); }
+  .field.invalid .field-error { display: block; }
+
+  .modal-footer { padding: 0 22px 22px; display: flex; gap: 8px; }
+  .mfooter-cancel {
+    padding: 10px 18px; border-radius: 8px; border: 1.5px solid var(--border); background: transparent;
+    color: var(--subtle); font-size: 13px; font-family: var(--sans); cursor: pointer; font-weight: 500;
+  }
+  .mfooter-cancel:hover { color: var(--text); border-color: var(--muted); }
+  .mfooter-save {
+    flex: 1; padding: 10px; border-radius: 8px; border: none; background: var(--gold);
+    color: var(--navy); font-size: 13.5px; font-family: var(--sans); font-weight: 600; cursor: pointer;
+  }
+  .mfooter-save:hover { background: #d9b85c; }
+  .mfooter-save:disabled { background: var(--muted); color: var(--slate); cursor: not-allowed; }
+
+  /* Adjustment type tabs */
+  .adj-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .adj-tab {
+    padding: 9px; border-radius: 8px; border: 1.5px solid var(--border); background: transparent;
+    color: var(--subtle); font-size: 12.5px; font-family: var(--sans); cursor: pointer; transition: all 0.12s;
+  }
+  .adj-tab.active[data-dir="up"]   { border-color: var(--sage); background: rgba(74,155,142,0.1); color: var(--sage); }
+  .adj-tab.active[data-dir="down"] { border-color: var(--red);  background: rgba(224,82,82,0.1);  color: var(--red); }
+
+  /* Adjustment history list in detail modal */
+  .adj-list { display: flex; flex-direction: column; gap: 2px; max-height: 200px; overflow-y: auto; }
+  .adj-row { display: flex; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px solid var(--border); }
+  .adj-row:last-child { border-bottom: none; }
+  .adj-badge { font-size: 10px; font-family: var(--mono); font-weight: 600; padding: 2px 6px; border-radius: 5px; flex-shrink: 0; }
+  .adj-badge.up   { background: rgba(74,155,142,0.15); color: var(--sage); }
+  .adj-badge.down { background: rgba(224,82,82,0.15);  color: var(--red); }
+  .adj-badge.set  { background: rgba(201,168,76,0.15); color: var(--gold); }
+  .adj-detail { flex: 1; min-width: 0; }
+  .adj-amount { font-family: var(--mono); font-size: 12px; color: var(--text); }
+  .adj-date   { font-size: 10px; font-family: var(--mono); color: var(--muted); }
+  .adj-note   { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .delete-confirm { display: flex; flex-direction: column; gap: 14px; padding: 22px; text-align: center; }
+  .delete-icon { font-size: 28px; }
+  .delete-title { font-size: 14px; font-weight: 600; }
+  .delete-sub { font-size: 12px; font-family: var(--mono); color: var(--muted); }
+  .delete-actions { display: flex; gap: 8px; }
+  .delete-actions button { flex: 1; padding: 10px; border-radius: 8px; font-size: 13px; font-family: var(--sans); font-weight: 500; cursor: pointer; }
+  .del-cancel { background: var(--slate); border: 1.5px solid var(--border); color: var(--subtle); }
+  .del-confirm { background: var(--red); border: none; color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="content">
+
+  <div class="account-grid" id="accountGrid"></div>
+
+  <div id="emptyState" class="card" style="display:none;text-align:center;padding:40px 20px;color:var(--muted)">
+    <div style="font-size:26px;margin-bottom:10px">🏦</div>
+    <div style="font-size:13px;color:var(--subtle)">No accounts yet. Add one to get started.</div>
+  </div>
+
+</div>
+
+<!-- ADD / EDIT ACCOUNT MODAL -->
+<div class="modal-backdrop" id="accountModalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="accountModalTitle">Add Account</div>
+      </div>
+      <button class="modal-close" id="accountModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field" id="fieldAccName">
+        <label for="accName">Account Name</label>
+        <input type="text" id="accName" placeholder="e.g. HSBC Checking, BML Savings…" autocomplete="off" />
+        <span class="field-error">Enter a name.</span>
+      </div>
+      <div class="field-row-2">
+        <div class="field">
+          <label for="accType">Type</label>
+          <input type="text" id="accType" placeholder="e.g. Savings, Crypto…" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="accCurrency">Currency</label>
+          <select id="accCurrency">
+            <option value="MVR" selected>MVR</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" id="fieldOpeningBalance">
+        <label for="openingBalance">Opening Balance</label>
+        <input type="number" id="openingBalance" placeholder="0.00" step="any" />
+        <span class="field-hint">Current balance if this account already exists, or 0 for a new account.</span>
+      </div>
+      <div class="field">
+        <label for="accNotes">Notes <span style="color:var(--muted);font-size:10px">(optional)</span></label>
+        <input type="text" id="accNotes" placeholder="e.g. last 4 digits, bank name…" autocomplete="off" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="mfooter-cancel" id="accountModalCancel">Cancel</button>
+      <button class="mfooter-save" id="accountModalSave" disabled>Save Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACCOUNT DETAIL MODAL (balance, adjustments history, log adjustment) -->
+<div class="modal-backdrop" id="detailModalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="detailModalTitle">—</div>
+        <div class="modal-sub" id="detailModalSub">—</div>
+      </div>
+      <button class="modal-close" id="detailModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--slate);border:1.5px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-family:var(--mono);color:var(--muted)">Current Balance</span>
+        <span style="font-family:var(--mono);font-size:18px;font-weight:500" id="detailBalance">—</span>
+      </div>
+      <div style="font-size:11.5px;font-family:var(--mono);color:var(--muted);text-align:center" id="detailBreakdown">—</div>
+      <div id="adjList" class="adj-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="mfooter-cancel" id="detailDeleteBtn" style="color:var(--red);border-color:rgba(224,82,82,0.4)">Delete</button>
+      <button class="mfooter-save" id="detailEditBtn" style="background:var(--slate);color:var(--text);border:1.5px solid var(--border);flex:0 0 auto;padding:10px 16px">Edit</button>
+      <button class="mfooter-save" id="detailAdjBtn">+ Adjustment</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG ADJUSTMENT MODAL -->
+<div class="modal-backdrop" id="adjModalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="adjModalTitle">Log Adjustment</div>
+        <div class="modal-sub" id="adjModalSub">Reconcile without adding individual transactions</div>
+      </div>
+      <button class="modal-close" id="adjModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="adj-tabs">
+        <button class="adj-tab active" data-dir="up">↑ Add funds</button>
+        <button class="adj-tab" data-dir="down">↓ Remove funds</button>
+      </div>
+      <div class="field" id="fieldAdjAmount">
+        <label for="adjAmount" id="adjAmountLabel">Amount (MVR)</label>
+        <input type="number" id="adjAmount" placeholder="0.00" min="0" step="any" />
+        <span class="field-error">Enter an amount.</span>
+      </div>
+      <div class="field">
+        <label for="adjDate">Date</label>
+        <input type="date" id="adjDate" />
+      </div>
+      <div class="field">
+        <label for="adjNote">Reason <span style="color:var(--muted);font-size:10px">(optional)</span></label>
+        <input type="text" id="adjNote" placeholder="e.g. reconcile with bank statement…" autocomplete="off" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="mfooter-cancel" id="adjModalCancel">Cancel</button>
+      <button class="mfooter-save" id="adjModalSave" disabled>Save Adjustment</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-backdrop" id="deleteModalBackdrop">
+  <div class="modal">
+    <div class="delete-confirm">
+      <div class="delete-icon">🗑️</div>
+      <div class="delete-title">Delete this account?</div>
+      <div class="delete-sub" id="deleteSubLabel">This removes the account and all its adjustment history.</div>
+      <div class="delete-actions">
+        <button class="del-cancel" id="delCancelBtn">Keep it</button>
+        <button class="del-confirm" id="delConfirmBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+
+  /* ════════════════
+     Data model
+     Each account: { id, name, type, currency, openingBalance, adjustments: [] }
+     Each adjustment: { id, dir: 'up'|'down', amount, date, note }
+     computed: balance = openingBalance + tx-credits - tx-debits + adj-ups - adj-downs
+     tx credits/debits are pushed in from the shell via AccountsPage.applyTransaction()
+     ════════════════ */
+  let accounts = [
+    { id: 'acc1', name: 'BML Checking', type: 'Checking', currency: 'MVR', openingBalance: 12440.20, txDelta: 0, adjustments: [] },
+    { id: 'acc2', name: 'Ally Savings', type: 'Savings',  currency: 'USD', openingBalance: 31200.00, txDelta: 0, adjustments: [] },
+  ];
+
+  let editingId  = null;
+  let detailId   = null;
+  let deletingId = null;
+  let adjDir     = 'up';
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function computeBalance(acc) {
+    const adjTotal = acc.adjustments.reduce((sum, a) => {
+      return sum + (a.dir === 'up' ? a.amount : -a.amount);
+    }, 0);
+    return acc.openingBalance + acc.txDelta + adjTotal;
+  }
+
+  function typeClass(type) {
+    const t = (type || '').toLowerCase();
+    if (t.includes('saving')) return 'savings';
+    if (t.includes('invest') || t.includes('broker')) return 'investment';
+    if (t.includes('credit') || t.includes('card')) return 'credit';
+    if (t.includes('cash')) return 'cash';
+    if (t.includes('wallet') || t.includes('crypto')) return 'wallet';
+    if (t.includes('check') || t.includes('current')) return 'checking';
+    return 'other';
+  }
+
+  /* ════════════════
+     Render
+     ════════════════ */
+  function render() {
+    const grid = document.getElementById('accountGrid');
+    const emptyEl = document.getElementById('emptyState');
+
+    emptyEl.style.display = accounts.length === 0 ? '' : 'none';
+    grid.innerHTML = '';
+
+    accounts.forEach(acc => {
+      const bal = computeBalance(acc);
+      const tc = typeClass(acc.type);
+      const isNeg = bal < 0;
+      const balColor = isNeg ? 'var(--red)' :
+        tc === 'savings' ? 'var(--sage)' :
+        tc === 'investment' ? 'var(--gold)' : 'var(--text)';
+      const adjCount = acc.adjustments.length;
+
+      const card = document.createElement('div');
+      card.className = `account-card ${tc}`;
+      card.innerHTML = `
+        <div class="account-top">
+          <div>
+            <div class="account-name">${escHtml(acc.name)}</div>
+            <div class="account-meta">${escHtml(acc.type || 'Account')} · ${acc.currency}</div>
+          </div>
+          <div class="account-balance">
+            <div class="account-balance-value" style="color:${balColor}">
+              ${acc.currency} ${Math.abs(bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}${isNeg?' (−)':''}
+            </div>
+            <div class="account-balance-label">Current balance</div>
+          </div>
+        </div>
+        <div class="account-footer">
+          <span class="account-adj-count">${adjCount} adjustment${adjCount !== 1 ? 's' : ''}</span>
+          <div class="account-actions">
+            <button class="action-btn" data-action="edit" data-id="${acc.id}" title="Edit">✎</button>
+            <button class="action-btn del" data-action="delete" data-id="${acc.id}" title="Delete">✕</button>
+          </div>
+        </div>
+      `;
+      card.addEventListener('click', e => {
+        if (e.target.closest('[data-action]')) return;
+        openDetailModal(acc.id);
+      });
+      grid.appendChild(card);
+    });
+
+    // Add account card
+    const addCard = document.createElement('div');
+    addCard.className = 'add-account-card';
+    addCard.innerHTML = `<span class="plus">+</span><span class="add-label">Add Account</span>`;
+    addCard.addEventListener('click', () => openAccountModal(null));
+    grid.appendChild(addCard);
+
+    // Wire action buttons
+    grid.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        if (btn.dataset.action === 'edit')   openAccountModal(id);
+        if (btn.dataset.action === 'delete') openDeleteModal(id);
+      });
+    });
+
+    broadcastAccounts();
+  }
+
+  /* Broadcast to shell whenever accounts change so all consumers stay in sync */
+  function broadcastAccounts() {
+    if (typeof window.AccountsPage?.onAccountsChange === 'function') {
+      window.AccountsPage.onAccountsChange(
+        accounts.map(acc => ({
+          id: acc.id,
+          name: acc.name,
+          type: acc.type,
+          currency: acc.currency,
+          balance: computeBalance(acc),
+        }))
+      );
+    }
+  }
+
+  /* ════════════════
+     Add / Edit account modal
+     ════════════════ */
+  const accountModalBackdrop = document.getElementById('accountModalBackdrop');
+  const accountModalTitle    = document.getElementById('accountModalTitle');
+  const accNameInput         = document.getElementById('accName');
+  const accTypeInput         = document.getElementById('accType');
+  const accCurrencySel       = document.getElementById('accCurrency');
+  const openingBalInput      = document.getElementById('openingBalance');
+  const accNotesInput        = document.getElementById('accNotes');
+  const accountModalSave     = document.getElementById('accountModalSave');
+
+  function openAccountModal(id) {
+    editingId = id;
+    accountModalTitle.textContent = id ? 'Edit Account' : 'Add Account';
+    document.getElementById('fieldOpeningBalance').style.display = id ? 'none' : '';
+
+    if (id) {
+      const acc = accounts.find(a => a.id === id);
+      accNameInput.value     = acc.name;
+      accTypeInput.value     = acc.type || '';
+      accCurrencySel.value   = acc.currency;
+      accNotesInput.value    = acc.notes || '';
+      openingBalInput.value  = acc.openingBalance;
+    } else {
+      accNameInput.value = '';
+      accTypeInput.value = '';
+      accCurrencySel.value = 'MVR';
+      openingBalInput.value = '0';
+      accNotesInput.value = '';
+    }
+    validateAccountModal();
+    accountModalBackdrop.classList.add('open');
+    accNameInput.focus();
+  }
+  function closeAccountModal() { accountModalBackdrop.classList.remove('open'); }
+
+  document.getElementById('accountModalClose').addEventListener('click', closeAccountModal);
+  document.getElementById('accountModalCancel').addEventListener('click', closeAccountModal);
+  accountModalBackdrop.addEventListener('click', e => { if (e.target === accountModalBackdrop) closeAccountModal(); });
+
+  function validateAccountModal() {
+    accountModalSave.disabled = accNameInput.value.trim().length === 0;
+  }
+  accNameInput.addEventListener('input', validateAccountModal);
+
+  accountModalSave.addEventListener('click', () => {
+    if (accountModalSave.disabled) return;
+
+    if (editingId) {
+      const acc = accounts.find(a => a.id === editingId);
+      acc.name     = accNameInput.value.trim();
+      acc.type     = accTypeInput.value.trim();
+      acc.currency = accCurrencySel.value;
+      acc.notes    = accNotesInput.value.trim();
+    } else {
+      accounts.push({
+        id: 'acc' + Date.now(),
+        name: accNameInput.value.trim(),
+        type: accTypeInput.value.trim(),
+        currency: accCurrencySel.value,
+        openingBalance: parseFloat(openingBalInput.value) || 0,
+        txDelta: 0,
+        adjustments: [],
+        notes: accNotesInput.value.trim(),
+      });
+    }
+    closeAccountModal();
+    render();
+  });
+
+  /* ════════════════
+     Account detail modal
+     ════════════════ */
+  const detailModalBackdrop = document.getElementById('detailModalBackdrop');
+  const detailModalTitle    = document.getElementById('detailModalTitle');
+  const detailModalSub      = document.getElementById('detailModalSub');
+  const detailBalance       = document.getElementById('detailBalance');
+  const detailBreakdown     = document.getElementById('detailBreakdown');
+  const adjList             = document.getElementById('adjList');
+
+  function openDetailModal(id) {
+    detailId = id;
+    renderDetailModal();
+    detailModalBackdrop.classList.add('open');
+  }
+  function closeDetailModal() { detailModalBackdrop.classList.remove('open'); }
+
+  function renderDetailModal() {
+    const acc = accounts.find(a => a.id === detailId);
+    if (!acc) return;
+
+    const bal = computeBalance(acc);
+    const isNeg = bal < 0;
+    const tc = typeClass(acc.type);
+    const balColor = isNeg ? 'var(--red)' :
+      tc === 'savings' ? 'var(--sage)' :
+      tc === 'investment' ? 'var(--gold)' : 'var(--text)';
+    const adjTotal = acc.adjustments.reduce((s,a) => s + (a.dir==='up'?a.amount:-a.amount), 0);
+
+    detailModalTitle.textContent = acc.name;
+    detailModalSub.textContent = `${acc.type || 'Account'} · ${acc.currency}`;
+    detailBalance.textContent = `${acc.currency} ${Math.abs(bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}${isNeg?' (overdrawn)':''}`;
+    detailBalance.style.color = balColor;
+    detailBreakdown.textContent = `Opening ${acc.currency} ${acc.openingBalance.toFixed(2)} · Transactions ${acc.txDelta >= 0 ? '+' : ''}${acc.txDelta.toFixed(2)} · Adjustments ${adjTotal >= 0 ? '+' : ''}${adjTotal.toFixed(2)}`;
+
+    if (acc.adjustments.length === 0) {
+      adjList.innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted);font-size:11.5px;font-family:var(--mono)">No adjustments yet</div>`;
+    } else {
+      const sorted = [...acc.adjustments].sort((a,b) => b.date.localeCompare(a.date));
+      adjList.innerHTML = sorted.map(adj => `
+        <div class="adj-row">
+          <span class="adj-badge ${adj.dir}">${adj.dir === 'up' ? '↑' : '↓'}</span>
+          <div class="adj-detail">
+            <div class="adj-amount">${adj.dir==='up'?'+':'-'}${acc.currency} ${adj.amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+            <div class="adj-date">${adj.date}${adj.note ? ' · ' + escHtml(adj.note) : ''}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  document.getElementById('detailModalClose').addEventListener('click', closeDetailModal);
+  detailModalBackdrop.addEventListener('click', e => { if (e.target === detailModalBackdrop) closeDetailModal(); });
+
+  document.getElementById('detailAdjBtn').addEventListener('click', () => {
+    closeDetailModal();
+    openAdjModal();
+  });
+  document.getElementById('detailEditBtn').addEventListener('click', () => {
+    closeDetailModal();
+    openAccountModal(detailId);
+  });
+  document.getElementById('detailDeleteBtn').addEventListener('click', () => {
+    closeDetailModal();
+    openDeleteModal(detailId);
+  });
+
+  /* ════════════════
+     Adjustment modal
+     ════════════════ */
+  const adjModalBackdrop = document.getElementById('adjModalBackdrop');
+  const adjAmountInput   = document.getElementById('adjAmount');
+  const adjAmountLabel   = document.getElementById('adjAmountLabel');
+  const adjDateInput     = document.getElementById('adjDate');
+  const adjNoteInput     = document.getElementById('adjNote');
+  const adjModalSave     = document.getElementById('adjModalSave');
+
+  function openAdjModal() {
+    const acc = accounts.find(a => a.id === detailId);
+    if (!acc) return;
+    adjDir = 'up';
+    document.querySelectorAll('.adj-tab').forEach(t => t.classList.toggle('active', t.dataset.dir === 'up'));
+    adjAmountLabel.textContent = `Amount (${acc.currency})`;
+    document.getElementById('adjModalSub').textContent = `${acc.name} · ${acc.currency}`;
+    adjAmountInput.value = '';
+    adjNoteInput.value = '';
+    adjDateInput.value = new Date().toISOString().split('T')[0];
+    adjModalSave.disabled = true;
+    adjModalBackdrop.classList.add('open');
+    adjAmountInput.focus();
+  }
+  function closeAdjModal() { adjModalBackdrop.classList.remove('open'); }
+
+  document.getElementById('adjModalClose').addEventListener('click', closeAdjModal);
+  document.getElementById('adjModalCancel').addEventListener('click', closeAdjModal);
+  adjModalBackdrop.addEventListener('click', e => { if (e.target === adjModalBackdrop) closeAdjModal(); });
+
+  document.querySelectorAll('.adj-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.adj-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      adjDir = tab.dataset.dir;
+    });
+  });
+
+  adjAmountInput.addEventListener('input', () => {
+    adjModalSave.disabled = !(parseFloat(adjAmountInput.value) > 0);
+  });
+
+  adjModalSave.addEventListener('click', () => {
+    if (adjModalSave.disabled) return;
+    const acc = accounts.find(a => a.id === detailId);
+    if (!acc) return;
+
+    acc.adjustments.push({
+      id: 'adj' + Date.now(),
+      dir: adjDir,
+      amount: parseFloat(adjAmountInput.value),
+      date: adjDateInput.value,
+      note: adjNoteInput.value.trim(),
+    });
+
+    closeAdjModal();
+    render();
+    // Reopen detail modal to show updated balance and history
+    openDetailModal(detailId);
+  });
+
+  /* ════════════════
+     Delete account
+     ════════════════ */
+  const deleteModalBackdrop = document.getElementById('deleteModalBackdrop');
+
+  function openDeleteModal(id) {
+    deletingId = id;
+    const acc = accounts.find(a => a.id === id);
+    document.getElementById('deleteSubLabel').textContent =
+      `This removes "${acc.name}" and all its adjustment history. Transactions already logged that reference this account are not affected.`;
+    deleteModalBackdrop.classList.add('open');
+  }
+
+  document.getElementById('delCancelBtn').addEventListener('click', () => { deleteModalBackdrop.classList.remove('open'); });
+  document.getElementById('delConfirmBtn').addEventListener('click', () => {
+    accounts = accounts.filter(a => a.id !== deletingId);
+    deleteModalBackdrop.classList.remove('open');
+    render();
+  });
+
+  /* ════════════════
+     Public API — called by the shell
+     ════════════════ */
+  window.AccountsPage = {
+    // Shell calls this when a transaction is saved — updates the relevant
+    // account's running txDelta so balance reflects all logged transactions.
+    applyTransaction(tx) {
+      const accountId = tx.type === 'transfer' ? null : tx.account;
+      if (!accountId) return;
+      const acc = accounts.find(a => a.id === accountId);
+      if (!acc) return;
+      if (tx.type === 'income')   acc.txDelta += tx.amount;
+      if (tx.type === 'expense')  acc.txDelta -= tx.amount;
+      render();
+    },
+
+    // Shell calls for transfers — debit fromAccount, credit toAccount
+    applyTransfer(fromId, toId, amount) {
+      const from = accounts.find(a => a.id === fromId);
+      const to   = accounts.find(a => a.id === toId);
+      if (from) from.txDelta -= amount;
+      if (to)   to.txDelta   += amount;
+      render();
+    },
+
+    // Called by the shell to get the current account list (for the
+    // transaction modal dropdown and the dashboard summary strip).
+    onAccountsChange: null, // set by shell: AccountsPage.onAccountsChange = fn
+  };
+
+  render();
+
+})();
+</script>
+</body>
+</html>

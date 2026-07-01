@@ -83,7 +83,7 @@
     'Dashboard':    'page-dashboard.html',
     'Transactions': 'page-transactions.html',
     'Budgets':      'page-budgets.html',
-    'Accounts':     null,
+    'Accounts':     'page-accounts.html',
     'Investments':  'page-investments.html',
     'Loans':        null,
     'Security':     null,
@@ -98,6 +98,12 @@
   let budgetFrameWindow      = null;
   let dashboardFrameWindow   = null;
   let transactionsFrameWindow = null;
+  let accountsFrameWindow     = null;
+
+  // Canonical account registry — single source of truth.
+  // The accounts page, transaction modal dropdown, and dashboard summary
+  // all derive their account data from this array via broadcast functions.
+  let canonicalAccounts = []; // populated once page-accounts.html loads and calls onAccountsChange
 
   const CATEGORY_KEY_MAP = {
     housing: 'Housing', food: 'Food', dining: 'Dining', transport: 'Transport',
@@ -130,6 +136,37 @@
     } else {
       pendingLedgerEntries.push(tx);
     }
+  }
+
+  // Broadcast updated account list to all consumers: transaction modal dropdown,
+  // dashboard account summary strip, and the accounts page itself if mounted.
+  function broadcastAccounts(accounts) {
+    canonicalAccounts = accounts;
+
+    // Update transaction modal dropdown if it's currently open
+    if (modalFrame && modalFrame.contentWindow && modalFrame.contentWindow.TransactionModal) {
+      modalFrame.contentWindow.TransactionModal.setAccounts(accounts);
+    }
+
+    // Update dashboard account summary strip
+    if (dashboardFrameWindow && dashboardFrameWindow.DashboardPage) {
+      dashboardFrameWindow.DashboardPage.updateAccounts(accounts);
+    }
+  }
+
+  // Push a transaction into the accounts page for balance tracking.
+  function applyTransactionToAccounts(tx) {
+    if (accountsFrameWindow && accountsFrameWindow.AccountsPage) {
+      if (tx.type === 'transfer') {
+        accountsFrameWindow.AccountsPage.applyTransfer(tx.fromAccount, tx.toAccount, tx.amount);
+      } else {
+        accountsFrameWindow.AccountsPage.applyTransaction(tx);
+      }
+    }
+    // Note: no pending queue here. If the accounts page isn't loaded yet,
+    // the balance will catch up from the opening balance + tx history once
+    // Supabase persistence is added. For now, account balances only update
+    // when the Accounts page is loaded in-session.
   }
 
   const pageFrames = {};
@@ -176,6 +213,10 @@
           pendingTransactions.forEach(tx => dashboardFrameWindow.DashboardPage.addTransaction(tx));
           pendingTransactions = [];
         }
+        // Push current account list so dashboard shows real accounts immediately
+        if (canonicalAccounts.length && dashboardFrameWindow.DashboardPage) {
+          dashboardFrameWindow.DashboardPage.updateAccounts(canonicalAccounts);
+        }
       });
     }
 
@@ -185,6 +226,19 @@
         if (pendingLedgerEntries.length && transactionsFrameWindow.TransactionsPage) {
           pendingLedgerEntries.forEach(tx => transactionsFrameWindow.TransactionsPage.addTransaction(tx));
           pendingLedgerEntries = [];
+        }
+      });
+    }
+
+    if (name === 'Accounts') {
+      frame.addEventListener('load', () => {
+        accountsFrameWindow = frame.contentWindow;
+        if (accountsFrameWindow.AccountsPage) {
+          // Wire the broadcast — whenever accounts change in the accounts page,
+          // push the updated list to all consumers (dashboard, transaction modal)
+          accountsFrameWindow.AccountsPage.onAccountsChange = (accounts) => {
+            broadcastAccounts(accounts);
+          };
         }
       });
     }
@@ -243,10 +297,17 @@
 
     frame.addEventListener('load', () => {
       const win = frame.contentWindow;
+
+      // Push current account list into the modal dropdown immediately
+      if (canonicalAccounts.length && win.TransactionModal) {
+        win.TransactionModal.setAccounts(canonicalAccounts);
+      }
+
       win.TransactionModal.onSave = (tx) => {
         sendTransactionToDashboard(tx);
         sendTransactionToLedger(tx);
         if (tx.type === 'expense' && tx.category) sendSpendToBudgetPage(tx.category, tx.amount);
+        applyTransactionToAccounts(tx);
       };
       win.TransactionModal.onClose = () => { setTimeout(() => { frame.remove(); modalFrame = null; }, 200); };
     });

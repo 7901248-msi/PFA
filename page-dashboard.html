@@ -123,21 +123,10 @@
       </div>
     </div>
 
-    <div class="accounts-stack">
-      <div class="card card-sm">
-        <div class="summary-label" style="margin-bottom:10px">Checking — Chase ···4821</div>
-        <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--text);margin-bottom:3px" id="acctChecking">MVR 12,440.20</div>
-        <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">Available balance</div>
-      </div>
-      <div class="card card-sm">
-        <div class="summary-label" style="margin-bottom:10px">Savings — Ally ···3309</div>
-        <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--sage);margin-bottom:3px" id="acctSavings">MVR 31,200.00</div>
-        <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">4.85% APY · HYSA</div>
-      </div>
-      <div class="card card-sm">
-        <div class="summary-label" style="margin-bottom:10px">Investment — Fidelity</div>
-        <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--gold);margin-bottom:3px" id="acctInvestment">MVR 40,680.30</div>
-        <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">↑ MVR 1,230 this month</div>
+    <div class="accounts-stack" id="accountsSummaryList">
+      <!-- Populated by shell via DashboardPage.updateAccounts(accounts) -->
+      <div style="font-size:12px;font-family:var(--mono);color:var(--muted);text-align:center;padding:16px">
+        No accounts yet — add one in the Accounts tab.
       </div>
     </div>
 
@@ -304,6 +293,28 @@
   /* ── Public API — mirrors the BudgetPage pattern in page-budgets.html ── */
   window.DashboardPage = {
     addTransaction,
+
+    updateAccounts(accounts) {
+      const list = document.getElementById('accountsSummaryList');
+      if (!list) return;
+      if (!accounts || accounts.length === 0) {
+        list.innerHTML = `<div style="font-size:12px;font-family:var(--mono);color:var(--muted);text-align:center;padding:16px">No accounts yet — add one in the Accounts tab.</div>`;
+        return;
+      }
+      list.innerHTML = accounts.map(acc => {
+        const bal = acc.balance;
+        const isNeg = bal < 0;
+        const color = isNeg ? 'var(--red)' : acc.type === 'savings' ? 'var(--sage)' : acc.type === 'investment' ? 'var(--gold)' : 'var(--text)';
+        return `
+          <div class="card card-sm">
+            <div class="summary-label" style="margin-bottom:10px">${escHtml(acc.name)}</div>
+            <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:${color};margin-bottom:3px">
+              ${acc.currency} ${Math.abs(bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}${isNeg ? ' (overdrawn)' : ''}
+            </div>
+            <div style="font-size:10.5px;font-family:var(--mono);color:var(--muted)">${escHtml(acc.type || 'Account')}</div>
+          </div>`;
+      }).join('');
+    },
   };
 
   recalculate(); // initial paint with zeroed session totals

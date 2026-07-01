@@ -545,11 +545,6 @@
           <label for="account">Account</label>
           <select id="account">
             <option value="">Select account…</option>
-            <option value="chase-checking">Chase Checking ···4821</option>
-            <option value="amex">Amex ···9210</option>
-            <option value="chase-visa">Chase Visa ···7734</option>
-            <option value="ally-savings">Ally Savings ···3309</option>
-            <option value="fidelity">Fidelity Brokerage</option>
           </select>
           <span class="field-error">Select an account.</span>
         </div>
@@ -562,20 +557,12 @@
             <label for="transferFrom">From Account</label>
             <select id="transferFrom">
               <option value="">From…</option>
-              <option value="chase-checking">Chase Checking ···4821</option>
-              <option value="amex">Amex ···9210</option>
-              <option value="ally-savings">Ally Savings ···3309</option>
-              <option value="fidelity">Fidelity Brokerage</option>
             </select>
           </div>
           <div class="field">
             <label for="transferTo">To Account</label>
             <select id="transferTo">
               <option value="">To…</option>
-              <option value="chase-checking">Chase Checking ···4821</option>
-              <option value="amex">Amex ···9210</option>
-              <option value="ally-savings">Ally Savings ···3309</option>
-              <option value="fidelity">Fidelity Brokerage</option>
             </select>
           </div>
         </div>
@@ -710,12 +697,8 @@
   let conversionFetchToken = 0;   // guards against stale async responses
 
   function openCurrencyPicker() {
-    console.log('[CurrencyPicker] Badge clicked — opening picker');
     currencyPickerBackdrop.classList.add('open');
     currencyPicker.classList.add('open');
-    console.log('[CurrencyPicker] currencyPicker classes:', currencyPicker.className);
-    console.log('[CurrencyPicker] computed display:', getComputedStyle(currencyPicker).display);
-    console.log('[CurrencyPicker] bounding rect:', currencyPicker.getBoundingClientRect());
   }
   function closeCurrencyPicker() {
     currencyPickerBackdrop.classList.remove('open');
@@ -995,8 +978,18 @@
       amountInput.focus();
     },
     close: closeModal,
-    onSave: null,   // override: window.TransactionModal.onSave = (tx) => { ... }
-    onClose: null,  // override: window.TransactionModal.onClose = () => { ... }
+    onSave: null,
+    onClose: null,
+
+    // Called by the shell whenever the account list changes.
+    // Populates all three account selects (single account, transfer from, transfer to)
+    // with the current canonical account list from the shell's registry.
+    setAccounts(accounts) {
+      const opts = accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+      document.getElementById('account').innerHTML = `<option value="">Select account…</option>${opts}`;
+      document.getElementById('transferFrom').innerHTML = `<option value="">From…</option>${opts}`;
+      document.getElementById('transferTo').innerHTML = `<option value="">To…</option>${opts}`;
+    },
   };
 
 })();
