@@ -96,18 +96,25 @@ export async function saveAdjustment(accountId, adj) {
 }
 
 export async function updateAccountTxDelta(accountId, delta) {
-  // Increment the running tx_delta for an account after a transaction is posted.
-  // Uses RPC to avoid a read-modify-write race — safe for concurrent sessions.
-  const { error } = await supabase.rpc('increment_tx_delta', {
-    p_account_id: accountId,
-    p_delta:      delta,
-  });
-  if (error) {
-    // Fallback if RPC not set up yet: read current, write new
-    const { data } = await supabase.from('accounts').select('tx_delta').eq('id', accountId).single();
-    const current = data?.tx_delta || 0;
-    await supabase.from('accounts').update({ tx_delta: current + delta }).eq('id', accountId);
-  }
+  // Read the current tx_delta, add the delta, write back.
+  // The RPC approach (increment_tx_delta) silently failed because
+  // security definer functions run as the DB owner where auth.uid()
+  // returns null — the where clause matched nothing. Direct client
+  // calls work fine since the session token is passed automatically
+  // and RLS handles user scoping on the read and write.
+  const { data: current, error: readErr } = await supabase
+    .from('accounts')
+    .select('tx_delta')
+    .eq('id', accountId)
+    .single();
+  if (readErr) throw readErr;
+
+  const newDelta = parseFloat(current.tx_delta || 0) + delta;
+  const { error: writeErr } = await supabase
+    .from('accounts')
+    .update({ tx_delta: newDelta })
+    .eq('id', accountId);
+  if (writeErr) throw writeErr;
 }
 
 // ────────────────────────────────────────

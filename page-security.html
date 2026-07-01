@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Vault — Security</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body { min-height: 100vh; }
+
+  .sec-section { margin-bottom: 20px; }
+  .sec-section-title {
+    font-size: 11px; font-family: var(--mono); letter-spacing: 0.1em;
+    color: var(--muted); text-transform: uppercase; margin-bottom: 10px;
+  }
+  .sec-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .sec-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+  }
+  .sec-row:last-child { border-bottom: none; }
+  .sec-row-left { display: flex; flex-direction: column; gap: 2px; }
+  .sec-row-label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .sec-row-sub { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+  .sec-row-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-ok   { background: var(--sage); box-shadow: 0 0 5px var(--sage); }
+  .dot-warn { background: var(--gold); box-shadow: 0 0 5px var(--gold); }
+
+  .sec-btn {
+    padding: 6px 12px; border-radius: 7px; border: 1.5px solid var(--border);
+    background: transparent; color: var(--subtle); font-size: 12px;
+    font-family: var(--sans); cursor: pointer; transition: all 0.12s;
+  }
+  .sec-btn:hover { border-color: var(--muted); color: var(--text); }
+  .sec-btn.danger { border-color: rgba(224,82,82,0.4); color: var(--red); }
+
+  /* Password change form */
+  .pass-form { display: none; flex-direction: column; gap: 12px; padding: 16px; background: var(--slate); border-top: 1px solid var(--border); }
+  .pass-form.open { display: flex; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 10.5px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+  input[type="password"] {
+    width: 100%; background: var(--panel); border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 9px 12px; font-size: 13px; font-family: var(--sans); color: var(--text);
+    outline: none; transition: border-color 0.15s;
+  }
+  input[type="password"]:focus { border-color: var(--gold); }
+  input::placeholder { color: var(--muted); }
+  .pass-actions { display: flex; gap: 8px; }
+  .btn-save-pass {
+    flex: 1; padding: 9px; border-radius: 7px; border: none; background: var(--gold);
+    color: var(--navy); font-size: 13px; font-family: var(--sans); font-weight: 600; cursor: pointer;
+  }
+  .btn-save-pass:disabled { background: var(--muted); color: var(--slate); cursor: not-allowed; }
+  .btn-cancel-pass {
+    padding: 9px 14px; border-radius: 7px; border: 1.5px solid var(--border); background: transparent;
+    color: var(--subtle); font-size: 13px; font-family: var(--sans); cursor: pointer;
+  }
+  .pass-msg { font-size: 11px; font-family: var(--mono); min-height: 14px; }
+  .pass-msg.ok  { color: var(--sage); }
+  .pass-msg.err { color: var(--red); }
+</style>
+</head>
+<body>
+<div class="content">
+
+  <div class="sec-section">
+    <div class="sec-section-title">Account</div>
+    <div class="sec-card">
+      <div class="sec-row">
+        <div class="sec-row-left">
+          <div class="sec-row-label">Email</div>
+          <div class="sec-row-sub" id="userEmail">Loading…</div>
+        </div>
+        <div class="status-dot dot-ok"></div>
+      </div>
+      <div class="sec-row">
+        <div class="sec-row-left">
+          <div class="sec-row-label">Password</div>
+          <div class="sec-row-sub">Change your login password</div>
+        </div>
+        <div class="sec-row-right">
+          <button class="sec-btn" id="btnChangePass">Change</button>
+        </div>
+      </div>
+      <div class="pass-form" id="passForm">
+        <div class="field">
+          <label>New Password</label>
+          <input type="password" id="newPass" placeholder="Min. 6 characters" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label>Confirm Password</label>
+          <input type="password" id="confirmPass" placeholder="Repeat new password" autocomplete="new-password" />
+        </div>
+        <div class="pass-actions">
+          <button class="btn-cancel-pass" id="btnCancelPass">Cancel</button>
+          <button class="btn-save-pass" id="btnSavePass" disabled>Save Password</button>
+        </div>
+        <div class="pass-msg" id="passMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-section">
+    <div class="sec-section-title">Current Session</div>
+    <div class="sec-card">
+      <div class="sec-row">
+        <div class="sec-row-left">
+          <div class="sec-row-label">Session Status</div>
+          <div class="sec-row-sub" id="sessionStatus">Checking…</div>
+        </div>
+        <div class="status-dot dot-ok" id="sessionDot"></div>
+      </div>
+      <div class="sec-row">
+        <div class="sec-row-left">
+          <div class="sec-row-label">Session Expires</div>
+          <div class="sec-row-sub" id="sessionExpiry">—</div>
+        </div>
+      </div>
+      <div class="sec-row">
+        <div class="sec-row-left">
+          <div class="sec-row-label">Last Sign In</div>
+          <div class="sec-row-sub" id="lastSignIn">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-section">
+    <div class="sec-section-title">Encryption</div>
+    <div class="sec-card">
+      <div class="sec-row">
+        <div class="sec-row-left">
+          <div class="sec-row-label">Data at Rest</div>
+          <div class="sec-row-sub">AES-256 via Supabase</div>
+        </div>
+        <div class="status-dot dot-ok"></div>
+      </div>
+      <div class="sec-row">
+        <div class="sec-row-left">
+          <div class="sec-row-label">Data in Transit</div>
+          <div class="sec-row-sub">TLS 1.3 (HTTPS only)</div>
+        </div>
+        <div class="status-dot dot-ok"></div>
+      </div>
+      <div class="sec-row">
+        <div class="sec-row-left">
+          <div class="sec-row-label">Row Level Security</div>
+          <div class="sec-row-sub">Enabled — your data is user-scoped</div>
+        </div>
+        <div class="status-dot dot-ok"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-section">
+    <div class="sec-section-title">Danger Zone</div>
+    <div class="sec-card">
+      <div class="sec-row">
+        <div class="sec-row-left">
+          <div class="sec-row-label">Sign Out</div>
+          <div class="sec-row-sub">End this session on this device</div>
+        </div>
+        <div class="sec-row-right">
+          <button class="sec-btn danger" id="btnSignOutSec">Sign Out</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+  import { supabase, signOut } from './supabase.js';
+
+  // Load session info
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (session) {
+    document.getElementById('userEmail').textContent = session.user.email;
+
+    const expiry = new Date(session.expires_at * 1000);
+    document.getElementById('sessionStatus').textContent = 'Active';
+    document.getElementById('sessionExpiry').textContent = expiry.toLocaleString();
+
+    const lastSignIn = new Date(session.user.last_sign_in_at);
+    document.getElementById('lastSignIn').textContent = lastSignIn.toLocaleString();
+  } else {
+    document.getElementById('sessionStatus').textContent = 'No active session';
+    document.getElementById('sessionDot').className = 'status-dot dot-warn';
+  }
+
+  // Password change
+  const passForm    = document.getElementById('passForm');
+  const newPass     = document.getElementById('newPass');
+  const confirmPass = document.getElementById('confirmPass');
+  const btnSavePass = document.getElementById('btnSavePass');
+  const passMsg     = document.getElementById('passMsg');
+
+  document.getElementById('btnChangePass').addEventListener('click', () => {
+    passForm.classList.toggle('open');
+  });
+  document.getElementById('btnCancelPass').addEventListener('click', () => {
+    passForm.classList.remove('open');
+    newPass.value = '';
+    confirmPass.value = '';
+    passMsg.textContent = '';
+    btnSavePass.disabled = true;
+  });
+
+  function validatePass() {
+    const ok = newPass.value.length >= 6 && newPass.value === confirmPass.value;
+    btnSavePass.disabled = !ok;
+    if (confirmPass.value && newPass.value !== confirmPass.value) {
+      passMsg.textContent = 'Passwords don\'t match';
+      passMsg.className = 'pass-msg err';
+    } else {
+      passMsg.textContent = '';
+      passMsg.className = 'pass-msg';
+    }
+  }
+  newPass.addEventListener('input', validatePass);
+  confirmPass.addEventListener('input', validatePass);
+
+  btnSavePass.addEventListener('click', async () => {
+    btnSavePass.disabled = true;
+    passMsg.textContent = 'Saving…';
+    passMsg.className = 'pass-msg';
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPass.value });
+      if (error) throw error;
+      passMsg.textContent = '✓ Password updated successfully';
+      passMsg.className = 'pass-msg ok';
+      newPass.value = '';
+      confirmPass.value = '';
+      setTimeout(() => { passForm.classList.remove('open'); passMsg.textContent = ''; }, 2000);
+    } catch (err) {
+      passMsg.textContent = err.message || 'Failed to update password';
+      passMsg.className = 'pass-msg err';
+      btnSavePass.disabled = false;
+    }
+  });
+
+  // Sign out from this page too
+  document.getElementById('btnSignOutSec').addEventListener('click', async () => {
+    await signOut();
+    window.location.replace('./login.html');
+  });
+</script>
+</body>
+</html>

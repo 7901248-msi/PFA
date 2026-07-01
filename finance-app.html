@@ -26,7 +26,7 @@
         <div class="indicator"></div>
         256-bit AES
       </div>
-      <button id="btnSignOut" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-family:var(--sans);cursor:pointer;">
+      <button id="btnSignOut" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid rgba(224,82,82,0.4);background:rgba(224,82,82,0.08);color:var(--red);font-size:12px;font-family:var(--sans);cursor:pointer;">
         Sign Out
       </button>
     </div>
@@ -42,7 +42,7 @@
       </div>
       <div class="topbar-right">
         <button class="btn btn-primary" id="btnAddTransaction">+ Add</button>
-        <div class="avatar">JD</div>
+        <div class="avatar" id="userAvatar" title="Account & Security">JD</div>
       </div>
     </header>
 
@@ -85,10 +85,16 @@
   // ── Auth guard ──
   // Import Supabase client and check session on load.
   // If no valid session, redirect to login page immediately.
-  import { getSession, signOut, onAuthStateChange, saveTransaction, saveLoan, loadLoans } from './supabase.js';
+  import { getSession, signOut, onAuthStateChange, saveTransaction, saveLoan, loadLoans, loadAccounts } from './supabase.js';
 
   const session = await getSession();
   if (!session) { window.location.replace('./login.html'); }
+
+  // Set avatar initials from real user email
+  const userEmail = session?.user?.email || '';
+  const initials = userEmail.slice(0, 2).toUpperCase() || '??';
+  document.getElementById('userAvatar').textContent = initials;
+  document.getElementById('userAvatar').addEventListener('click', () => navigateTo('Security'));
 
   // Listen for auth changes (e.g. session expiry) and redirect
   onAuthStateChange((s) => { if (!s) window.location.replace('./login.html'); });
@@ -100,7 +106,7 @@
     'Accounts':     'page-accounts.html',
     'Investments':  'page-investments.html',
     'Loans':        null,
-    'Security':     null,
+    'Security':     'page-security.html',
   };
 
   const loansView  = document.getElementById('loansView');
@@ -392,7 +398,9 @@
     frame.addEventListener('load', () => {
       const win = frame.contentWindow;
 
-      // Push current account list into the loan modal account dropdown
+      // Push current account list into the loan modal account dropdown.
+      // Also wired in broadcastAccounts() so if accounts load after the
+      // modal opens (PC timing), the dropdown still gets populated.
       if (canonicalAccounts.length && win.LoanModal) {
         win.LoanModal.setAccounts(canonicalAccounts);
       }
@@ -452,6 +460,30 @@
   }
 
   loadPage('Dashboard');
+
+  // Load accounts immediately on startup — don't wait for the accounts
+  // page iframe to mount and broadcast. The dashboard needs account data
+  // right away, and the transaction modal needs the account list before
+  // the user opens it. Both were previously empty because they depended
+  // on the accounts iframe loading first, which only happens on demand.
+  async function initAccounts() {
+    try {
+      const rows = await loadAccounts();
+      const accounts = rows.map(row => ({
+        id:       row.id,
+        name:     row.name,
+        type:     row.type || '',
+        currency: row.currency,
+        balance:  parseFloat(row.opening_balance) + parseFloat(row.tx_delta) +
+                  (row.account_adjustments || []).reduce((s, a) =>
+                    s + (a.dir === 'up' ? parseFloat(a.amount) : -parseFloat(a.amount)), 0),
+      }));
+      broadcastAccounts(accounts);
+    } catch (err) {
+      console.error('[Vault] Failed to load accounts:', err.message);
+    }
+  }
+  initAccounts();
 
   // Load persisted loans from Supabase on app start
   async function initLoans() {
