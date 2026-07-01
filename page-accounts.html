@@ -281,7 +281,8 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import { loadAccounts, saveAccount, deleteAccount, saveAdjustment } from './supabase.js';
 (function () {
 
   /* ════════════════
@@ -291,10 +292,7 @@
      computed: balance = openingBalance + tx-credits - tx-debits + adj-ups - adj-downs
      tx credits/debits are pushed in from the shell via AccountsPage.applyTransaction()
      ════════════════ */
-  let accounts = [
-    { id: 'acc1', name: 'BML Checking', type: 'Checking', currency: 'MVR', openingBalance: 12440.20, txDelta: 0, adjustments: [] },
-    { id: 'acc2', name: 'Ally Savings', type: 'Savings',  currency: 'USD', openingBalance: 31200.00, txDelta: 0, adjustments: [] },
-  ];
+  let accounts = []; // loaded from Supabase on init
 
   let editingId  = null;
   let detailId   = null;
@@ -453,28 +451,44 @@
   }
   accNameInput.addEventListener('input', validateAccountModal);
 
-  accountModalSave.addEventListener('click', () => {
+  accountModalSave.addEventListener('click', async () => {
     if (accountModalSave.disabled) return;
+    accountModalSave.disabled = true;
 
-    if (editingId) {
-      const acc = accounts.find(a => a.id === editingId);
-      acc.name     = accNameInput.value.trim();
-      acc.type     = accTypeInput.value.trim();
-      acc.currency = accCurrencySel.value;
-      acc.notes    = accNotesInput.value.trim();
-    } else {
-      accounts.push({
-        id: 'acc' + Date.now(),
-        name: accNameInput.value.trim(),
-        type: accTypeInput.value.trim(),
-        currency: accCurrencySel.value,
-        openingBalance: parseFloat(openingBalInput.value) || 0,
-        txDelta: 0,
-        adjustments: [],
-        notes: accNotesInput.value.trim(),
-      });
+    const newAcc = {
+      id:             editingId || null,
+      name:           accNameInput.value.trim(),
+      type:           accTypeInput.value.trim(),
+      currency:       accCurrencySel.value,
+      openingBalance: parseFloat(openingBalInput.value) || 0,
+      txDelta:        0,
+      adjustments:    [],
+      notes:          accNotesInput.value.trim(),
+    };
+
+    try {
+      const dbId = await saveAccount(newAcc);
+      if (editingId) {
+        const acc = accounts.find(a => a.id === editingId);
+        Object.assign(acc, { name: newAcc.name, type: newAcc.type, currency: newAcc.currency, notes: newAcc.notes });
+      } else {
+        newAcc.id = dbId;
+        accounts.push(newAcc);
+      }
+    } catch (err) {
+      console.error('[Accounts] Save failed:', err.message);
+      // Still update in-memory so UI doesn't feel broken
+      if (editingId) {
+        const acc = accounts.find(a => a.id === editingId);
+        Object.assign(acc, { name: newAcc.name, type: newAcc.type, currency: newAcc.currency, notes: newAcc.notes });
+      } else {
+        newAcc.id = 'acc' + Date.now();
+        accounts.push(newAcc);
+      }
     }
+
     closeAccountModal();
+    accountModalSave.disabled = false;
     render();
   });
 
@@ -587,22 +601,28 @@
     adjModalSave.disabled = !(parseFloat(adjAmountInput.value) > 0);
   });
 
-  adjModalSave.addEventListener('click', () => {
+  adjModalSave.addEventListener('click', async () => {
     if (adjModalSave.disabled) return;
     const acc = accounts.find(a => a.id === detailId);
     if (!acc) return;
 
-    acc.adjustments.push({
-      id: 'adj' + Date.now(),
-      dir: adjDir,
+    const adj = {
+      id:     'adj' + Date.now(),
+      dir:    adjDir,
       amount: parseFloat(adjAmountInput.value),
-      date: adjDateInput.value,
-      note: adjNoteInput.value.trim(),
-    });
+      date:   adjDateInput.value,
+      note:   adjNoteInput.value.trim(),
+    };
 
+    try {
+      await saveAdjustment(acc.id, adj);
+    } catch (err) {
+      console.error('[Accounts] Adjustment save failed:', err.message);
+    }
+
+    acc.adjustments.push(adj);
     closeAdjModal();
     render();
-    // Reopen detail modal to show updated balance and history
     openDetailModal(detailId);
   });
 
@@ -620,7 +640,12 @@
   }
 
   document.getElementById('delCancelBtn').addEventListener('click', () => { deleteModalBackdrop.classList.remove('open'); });
-  document.getElementById('delConfirmBtn').addEventListener('click', () => {
+  document.getElementById('delConfirmBtn').addEventListener('click', async () => {
+    try {
+      await deleteAccount(deletingId);
+    } catch (err) {
+      console.error('[Accounts] Delete failed:', err.message);
+    }
     accounts = accounts.filter(a => a.id !== deletingId);
     deleteModalBackdrop.classList.remove('open');
     render();
@@ -656,7 +681,31 @@
     onAccountsChange: null, // set by shell: AccountsPage.onAccountsChange = fn
   };
 
-  render();
+  async function init() {
+    try {
+      const rows = await loadAccounts();
+      accounts = rows.map(row => ({
+        id:             row.id,
+        name:           row.name,
+        type:           row.type || '',
+        currency:       row.currency,
+        openingBalance: parseFloat(row.opening_balance),
+        txDelta:        parseFloat(row.tx_delta),
+        notes:          row.notes || '',
+        adjustments:    (row.account_adjustments || []).map(a => ({
+          id:     a.id,
+          dir:    a.dir,
+          amount: parseFloat(a.amount),
+          date:   a.date,
+          note:   a.note || '',
+        })),
+      }));
+    } catch (err) {
+      console.error('[Accounts] Load failed:', err.message);
+    }
+    render();
+  }
+  init();
 
 })();
 </script>

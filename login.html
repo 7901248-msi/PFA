@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Vault — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy:   #0D1B2A; --slate:  #1A2B3C; --panel:  #162230;
+    --border: #243447; --muted:  #3A5068; --text:   #F0F4F8;
+    --subtle: #8BA3B8; --gold:   #C9A84C; --sage:   #4A9B8E;
+    --red:    #E05252; --mono:   'DM Mono', monospace; --sans: 'Inter', sans-serif;
+  }
+  html, body {
+    min-height: 100vh; background: var(--navy); color: var(--text);
+    font-family: var(--sans); font-size: 14px; -webkit-font-smoothing: antialiased;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .login-card {
+    width: 100%; max-width: 380px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px 28px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .pulse-ring { width: 28px; height: 28px; position: relative; }
+  .pulse-ring::before {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    border: 1.5px solid var(--sage); animation: pulse-out 2.4s ease-out infinite; opacity: 0;
+  }
+  .pulse-ring .dot {
+    position: absolute; inset: 6px; border-radius: 50%;
+    background: var(--sage); box-shadow: 0 0 6px var(--sage);
+  }
+  @keyframes pulse-out { 0% { transform: scale(1); opacity: 0.7; } 100% { transform: scale(2.2); opacity: 0; } }
+  .logo-text { font-family: var(--mono); font-size: 16px; font-weight: 500; letter-spacing: 0.08em; }
+  .logo-text span { color: var(--gold); }
+
+  .tab-row { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .tab {
+    flex: 1; padding: 10px; background: none; border: none;
+    color: var(--muted); font-size: 13px; font-family: var(--sans);
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all 0.15s;
+  }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  label { font-size: 11px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+  input {
+    width: 100%; background: var(--slate); border: 1.5px solid var(--border);
+    border-radius: 8px; padding: 11px 14px; font-size: 13.5px;
+    font-family: var(--sans); color: var(--text); outline: none; transition: border-color 0.15s;
+  }
+  input:focus { border-color: var(--gold); }
+  input::placeholder { color: var(--muted); }
+
+  .btn-submit {
+    width: 100%; padding: 12px; border-radius: 8px; border: none;
+    background: var(--gold); color: var(--navy); font-size: 14px;
+    font-family: var(--sans); font-weight: 600; cursor: pointer;
+    margin-top: 6px; transition: background 0.15s;
+  }
+  .btn-submit:hover { background: #d9b85c; }
+  .btn-submit:disabled { background: var(--muted); color: var(--slate); cursor: not-allowed; }
+
+  .msg { font-size: 12px; font-family: var(--mono); text-align: center; margin-top: 14px; min-height: 16px; }
+  .msg.error { color: var(--red); }
+  .msg.success { color: var(--sage); }
+
+  .security-note {
+    display: flex; align-items: center; gap: 6px; justify-content: center;
+    margin-top: 20px; font-size: 11px; font-family: var(--mono); color: var(--muted);
+  }
+  .sec-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sage); }
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="logo">
+    <div class="pulse-ring"><div class="dot"></div></div>
+    <span class="logo-text">VAULT<span>.</span></span>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab active" id="tabSignIn">Sign In</button>
+    <button class="tab" id="tabSignUp">Create Account</button>
+  </div>
+
+  <div class="field">
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="you@example.com" autocomplete="email" />
+  </div>
+  <div class="field">
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+  </div>
+
+  <button class="btn-submit" id="btnSubmit" disabled>Sign In</button>
+  <div class="msg" id="msg"></div>
+
+  <div class="security-note">
+    <div class="sec-dot"></div>
+    End-to-end encrypted · AES-256
+  </div>
+</div>
+
+<script type="module">
+  import { signIn, signUp, getSession } from './supabase.js';
+
+  // Already logged in? Go straight to the app.
+  const session = await getSession();
+  if (session) window.location.replace('./finance-app.html');
+
+  let mode = 'signin'; // 'signin' | 'signup'
+
+  const emailInput  = document.getElementById('email');
+  const passInput   = document.getElementById('password');
+  const btnSubmit   = document.getElementById('btnSubmit');
+  const msgEl       = document.getElementById('msg');
+  const tabSignIn   = document.getElementById('tabSignIn');
+  const tabSignUp   = document.getElementById('tabSignUp');
+
+  function validate() {
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.value);
+    const passOk  = passInput.value.length >= 6;
+    btnSubmit.disabled = !(emailOk && passOk);
+  }
+
+  emailInput.addEventListener('input', validate);
+  passInput.addEventListener('input', validate);
+
+  // Allow Enter key to submit
+  passInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !btnSubmit.disabled) btnSubmit.click();
+  });
+
+  tabSignIn.addEventListener('click', () => {
+    mode = 'signin';
+    tabSignIn.classList.add('active');
+    tabSignUp.classList.remove('active');
+    btnSubmit.textContent = 'Sign In';
+    msgEl.textContent = '';
+    msgEl.className = 'msg';
+  });
+
+  tabSignUp.addEventListener('click', () => {
+    mode = 'signup';
+    tabSignUp.classList.add('active');
+    tabSignIn.classList.remove('active');
+    btnSubmit.textContent = 'Create Account';
+    msgEl.textContent = '';
+    msgEl.className = 'msg';
+  });
+
+  btnSubmit.addEventListener('click', async () => {
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = mode === 'signin' ? 'Signing in…' : 'Creating account…';
+    msgEl.textContent = '';
+    msgEl.className = 'msg';
+
+    try {
+      if (mode === 'signin') {
+        await signIn(emailInput.value.trim(), passInput.value);
+        msgEl.textContent = 'Signed in — loading…';
+        msgEl.className = 'msg success';
+        window.location.replace('./finance-app.html');
+      } else {
+        await signUp(emailInput.value.trim(), passInput.value);
+        msgEl.textContent = 'Account created — check your email to confirm, then sign in.';
+        msgEl.className = 'msg success';
+        tabSignIn.click();
+      }
+    } catch (err) {
+      msgEl.textContent = err.message || 'Something went wrong. Try again.';
+      msgEl.className = 'msg error';
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
+    }
+  });
+</script>
+</body>
+</html>

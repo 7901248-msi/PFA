@@ -22,10 +22,13 @@
     </div>
     <nav class="mobile-drawer-nav" id="drawerNav"></nav>
     <div class="mobile-drawer-footer">
-      <div class="security-badge">
+      <div class="security-badge" style="margin-bottom:10px">
         <div class="indicator"></div>
         256-bit AES
       </div>
+      <button id="btnSignOut" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-family:var(--sans);cursor:pointer;">
+        Sign Out
+      </button>
     </div>
   </aside>
 
@@ -78,7 +81,18 @@
   </nav>
 </div>
 
-<script>
+<script type="module">
+  // ── Auth guard ──
+  // Import Supabase client and check session on load.
+  // If no valid session, redirect to login page immediately.
+  import { getSession, signOut, onAuthStateChange, saveTransaction, saveLoan } from './supabase.js';
+
+  const session = await getSession();
+  if (!session) { window.location.replace('./login.html'); }
+
+  // Listen for auth changes (e.g. session expiry) and redirect
+  onAuthStateChange((s) => { if (!s) window.location.replace('./login.html'); });
+
   const PAGE_MAP = {
     'Dashboard':    'page-dashboard.html',
     'Transactions': 'page-transactions.html',
@@ -303,7 +317,16 @@
         win.TransactionModal.setAccounts(canonicalAccounts);
       }
 
-      win.TransactionModal.onSave = (tx) => {
+      win.TransactionModal.onSave = async (tx) => {
+        // Persist to Supabase first, get back the real DB id
+        try {
+          const saved = await saveTransaction(tx);
+          tx.id = saved.id; // replace temp UUID with DB id
+        } catch (err) {
+          console.error('[Vault] Failed to save transaction:', err.message);
+          // Continue with in-memory update even if DB write fails,
+          // so the UI doesn't appear broken during connectivity issues.
+        }
         sendTransactionToDashboard(tx);
         sendTransactionToLedger(tx);
         if (tx.type === 'expense' && tx.category) sendSpendToBudgetPage(tx.category, tx.amount);
@@ -335,7 +358,16 @@
 
     frame.addEventListener('load', () => {
       const win = frame.contentWindow;
-      win.LoanModal.onSave = (loan) => { loans.push(loan); renderLoansList(); };
+      win.LoanModal.onSave = async (loan) => {
+        try {
+          const id = await saveLoan(loan);
+          loan.id = id;
+        } catch (err) {
+          console.error('[Vault] Failed to save loan:', err.message);
+        }
+        loans.push(loan);
+        renderLoansList();
+      };
       win.LoanModal.onClose = () => { setTimeout(() => { frame.remove(); loanModalFrame = null; }, 200); };
     });
 
@@ -381,6 +413,12 @@
   }
 
   loadPage('Dashboard');
+
+  // Sign out
+  document.getElementById('btnSignOut').addEventListener('click', async () => {
+    await signOut();
+    window.location.replace('./login.html');
+  });
 </script>
 </body>
 </html>
