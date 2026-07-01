@@ -133,7 +133,8 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import { loadTransactions } from './supabase.js';
 (function() {
 
   document.getElementById('alertClose').addEventListener('click', function() {
@@ -317,7 +318,37 @@
     },
   };
 
+  // Load persisted transactions from Supabase and replay them into
+  // the dashboard's running totals + recent transaction list.
+  async function loadPersistedTransactions() {
+    try {
+      const { loadTransactions } = await import('./supabase.js');
+      const rows = await loadTransactions();
+      // Process newest-last so the list shows newest-first after prepending
+      const sorted = [...rows].sort((a,b) => a.date.localeCompare(b.date));
+      sorted.forEach(row => {
+        const tx = {
+          id:               row.id,
+          type:             row.type,
+          amount:           parseFloat(row.amount),
+          originalCurrency: row.original_currency || 'MVR',
+          originalAmount:   parseFloat(row.original_amount || row.amount),
+          description:      row.description,
+          date:             row.date,
+          account:          row.account_id,
+          fromAccount:      row.from_account_id,
+          toAccount:        row.to_account_id,
+          category:         row.category,
+        };
+        addTransaction(tx);
+      });
+    } catch (err) {
+      console.error('[Dashboard] Failed to load transactions:', err.message);
+    }
+  }
+
   recalculate(); // initial paint with zeroed session totals
+  loadPersistedTransactions();
 
 })();
 </script>

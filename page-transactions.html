@@ -128,21 +128,14 @@
 
 </div>
 
-<script>
+<script type="module">
+  import { loadTransactions } from './supabase.js';
 (function() {
 
   /* ── Seed data — same 7 demo entries shown on Dashboard, kept in sync
      so the two pages agree on starting state. New transactions are
      pushed in via the public API below as they're saved elsewhere. ── */
-  let transactions = [
-    { id: 's1', type: 'income',  category: 'salary',        description: 'Salary — Acme Corp',     date: '2026-06-25', account: 'Chase Checking ···4821', amount: 6500.00 },
-    { id: 's2', type: 'expense', category: 'food',          description: 'Whole Foods Market',      date: '2026-06-24', account: 'Amex ···9210',           amount: 114.30 },
-    { id: 's3', type: 'expense', category: 'subscriptions', description: 'Spotify Premium',         date: '2026-06-23', account: 'Chase Visa ···7734',     amount: 10.99 },
-    { id: 's4', type: 'expense', category: 'housing',       description: 'Rent — Riverside Apts',   date: '2026-06-01', account: 'Chase Checking ···4821', amount: 1850.00 },
-    { id: 's5', type: 'expense', category: 'transport',     description: 'Shell Station',           date: '2026-06-22', account: 'Chase Visa ···7734',     amount: 62.10 },
-    { id: 's6', type: 'income',  category: 'investment',    description: 'Dividend — VTSAX',        date: '2026-06-20', account: 'Fidelity Brokerage',     amount: 188.44 },
-    { id: 's7', type: 'expense', category: 'dining',        description: 'Pizzeria Mozza',          date: '2026-06-19', account: 'Amex ···9210',           amount: 73.50 },
-  ];
+  let transactions = []; // loaded from Supabase on init
 
   const categoryEmoji = {
     housing: '🏠', food: '🛒', dining: '🍕', transport: '🚗',
@@ -300,7 +293,28 @@
     },
   };
 
-  render();
+  async function init() {
+    try {
+      const rows = await loadTransactions();
+      transactions = rows.map(row => ({
+        id:               row.id,
+        type:             row.type,
+        amount:           parseFloat(row.amount),
+        originalCurrency: row.original_currency || 'MVR',
+        originalAmount:   parseFloat(row.original_amount || row.amount),
+        description:      row.description,
+        date:             row.date,
+        account:          row.account_id || row.from_account_id
+                          ? (row.from_account_id ? `${row.from_account_id} → ${row.to_account_id}` : row.account_id)
+                          : 'Unknown',
+        category:         row.category || 'other',
+      }));
+    } catch (err) {
+      console.error('[Transactions] Load failed:', err.message);
+    }
+    render();
+  }
+  init();
 
 })();
 </script>

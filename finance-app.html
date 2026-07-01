@@ -162,6 +162,11 @@
       modalFrame.contentWindow.TransactionModal.setAccounts(accounts);
     }
 
+    // Update loan modal dropdown if it's currently open
+    if (loanModalFrame && loanModalFrame.contentWindow && loanModalFrame.contentWindow.LoanModal) {
+      loanModalFrame.contentWindow.LoanModal.setAccounts(accounts);
+    }
+
     // Update dashboard account summary strip
     if (dashboardFrameWindow && dashboardFrameWindow.DashboardPage) {
       dashboardFrameWindow.DashboardPage.updateAccounts(accounts);
@@ -261,10 +266,38 @@
     pageFrames[name] = frame;
   }
 
+  const btnAdd = document.getElementById('btnAddTransaction');
+
+  // Page-to-action map: what the + Add button does per page, and its label.
+  // Pages with their own internal add flow (Budgets, Accounts, Security)
+  // hide the topbar button to avoid duplicate entry points and confusion.
+  const PAGE_ADD_ACTION = {
+    'Dashboard':    { label: '+ Add', show: true,  action: () => openTransactionModal() },
+    'Transactions': { label: '+ Add', show: true,  action: () => openTransactionModal() },
+    'Budgets':      { label: '',      show: false,  action: null },
+    'Loans':        { label: '+ Add', show: true,  action: () => openLoanModal() },
+    'Accounts':     { label: '',      show: false,  action: null },
+    'Investments':  { label: '',      show: false,  action: null },
+    'Security':     { label: '',      show: false,  action: null },
+  };
+  let currentPageAction = null;
+
+  btnAdd.addEventListener('click', () => {
+    if (currentPageAction) currentPageAction();
+  });
+
+  function updateTopbarButton(name) {
+    const cfg = PAGE_ADD_ACTION[name] || { label: '+ Add', show: true, action: () => openTransactionModal() };
+    btnAdd.textContent = cfg.label;
+    btnAdd.style.display = cfg.show ? '' : 'none';
+    currentPageAction = cfg.action;
+  }
+
   function navigateTo(name) {
     document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.toggle('active', b.dataset.page === name));
     document.querySelectorAll('.drawer-nav-item').forEach(b => b.classList.toggle('active', b.dataset.page === name));
     closeDrawer();
+    updateTopbarButton(name);
     loadPage(name);
   }
 
@@ -339,7 +372,7 @@
     modalFrame = frame;
   }
 
-  document.getElementById('btnAddTransaction').addEventListener('click', openTransactionModal);
+  // btnAddTransaction is now handled by updateTopbarButton/PAGE_ADD_ACTION above
 
   let loans = [];
   let loanModalFrame = null;
@@ -358,6 +391,12 @@
 
     frame.addEventListener('load', () => {
       const win = frame.contentWindow;
+
+      // Push current account list into the loan modal account dropdown
+      if (canonicalAccounts.length && win.LoanModal) {
+        win.LoanModal.setAccounts(canonicalAccounts);
+      }
+
       win.LoanModal.onSave = async (loan) => {
         try {
           const id = await saveLoan(loan);

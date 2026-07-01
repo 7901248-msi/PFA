@@ -169,9 +169,16 @@
         window.location.replace('./finance-app.html');
       } else {
         await signUp(emailInput.value.trim(), passInput.value);
-        msgEl.textContent = 'Account created — check your email to confirm, then sign in.';
-        msgEl.className = 'msg success';
+        // Clear fields and switch to sign-in tab so user can log in
+        // after verifying their email — don't leave them stuck on a
+        // disabled form with no clear next step.
+        emailInput.value = '';
+        passInput.value  = '';
         tabSignIn.click();
+        // Show message on the sign-in tab (tabSignIn.click() clears msgEl, so set after)
+        msgEl.textContent = '✓ Account created — check your email for a verification link, then sign in here.';
+        msgEl.className = 'msg success';
+        btnSubmit.disabled = true; // stays disabled until new input
       }
     } catch (err) {
       msgEl.textContent = err.message || 'Something went wrong. Try again.';

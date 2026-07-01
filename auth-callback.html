@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vault — Verifying…</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; background: #0D1B2A; color: #F0F4F8;
+    font-family: 'Inter', sans-serif; display: flex;
+    align-items: center; justify-content: center; font-size: 14px;
+  }
+  .msg { text-align: center; }
+  .msg p { color: #8BA3B8; font-family: 'DM Mono', monospace; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="msg">
+  <div style="font-size:28px;margin-bottom:12px">✓</div>
+  <div style="font-size:15px;font-weight:600">Verifying your account…</div>
+  <p id="status">Please wait.</p>
+</div>
+<script type="module">
+  // Supabase sends the user here after email verification.
+  // The token is in the URL — Supabase's JS client handles it
+  // automatically when we initialise it, then we redirect to the app.
+  import { supabase } from './supabase.js';
+
+  const statusEl = document.getElementById('status');
+
+  // Give the client a moment to process the token from the URL hash
+  const { data: { session }, error } = await supabase.auth.getSession();
+
+  if (session) {
+    statusEl.textContent = 'Verified — redirecting to app…';
+    setTimeout(() => window.location.replace('./finance-app.html'), 800);
+  } else if (error) {
+    statusEl.textContent = 'Verification failed: ' + error.message + '. Please try signing in.';
+    setTimeout(() => window.location.replace('./login.html'), 3000);
+  } else {
+    // Token may still be in the hash — wait for auth state change
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        statusEl.textContent = 'Verified — redirecting to app…';
+        setTimeout(() => window.location.replace('./finance-app.html'), 800);
+      } else if (event === 'SIGNED_OUT') {
+        statusEl.textContent = 'Could not verify. Redirecting to login…';
+        setTimeout(() => window.location.replace('./login.html'), 2000);
+      }
+    });
+  }
+</script>
+</body>
+</html>
