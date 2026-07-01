@@ -409,18 +409,28 @@
         </div>
       </div>
 
-      <!-- Due date -->
+      <!-- Due date + account fields
+           "I Owe This": Pay From (which of your accounts the payment comes from)
+                         Pay To (lender's side — optional, free text)
+           "Owed To Me": Pay To only (which of your accounts receives repayment) -->
       <div class="field-row">
         <div class="field">
           <label for="dueDate">Next Payment Due</label>
           <input type="date" id="dueDate" />
         </div>
-        <div class="field">
-          <label for="account">Pay From / To Account</label>
-          <select id="account">
-            <option value="">Select account…</option>
+        <div class="field" id="fieldPayFrom">
+          <label for="payFromAccount">Pay From</label>
+          <select id="payFromAccount">
+            <option value="">Your account…</option>
           </select>
         </div>
+      </div>
+
+      <div class="field" id="fieldPayTo">
+        <label for="payToAccount">Receive Into</label>
+        <select id="payToAccount">
+          <option value="">Your account…</option>
+        </select>
       </div>
 
       <!-- Computed payoff preview -->
@@ -498,7 +508,10 @@
   const paymentInput   = document.getElementById('payment');
   const frequencySel   = document.getElementById('frequency');
   const dueDateInput   = document.getElementById('dueDate');
-  const accountSel     = document.getElementById('account');
+  const payFromSel     = document.getElementById('payFromAccount');
+  const payToSel       = document.getElementById('payToAccount');
+  const fieldPayFrom   = document.getElementById('fieldPayFrom');
+  const fieldPayTo     = document.getElementById('fieldPayTo');
   const typeChips      = document.getElementById('typeChips');
   const fieldLoanType  = document.getElementById('fieldLoanType');
   const ratePaymentRow = document.getElementById('ratePaymentRow');
@@ -584,6 +597,11 @@
         partyInput.placeholder = 'e.g. Chase Bank';
         fieldLoanType.style.display = '';
         ratePaymentRow.style.display = '';
+        // For loans you owe: show Pay From (which account you pay from)
+        // hide Pay To (you're not receiving money)
+        fieldPayFrom.style.display = '';
+        fieldPayTo.style.display = 'none';
+        document.querySelector('label[for="payFromAccount"]').textContent = 'Pay From';
       } else {
         modalTitle.textContent = 'Add Money Lent';
         partyLabel.textContent = 'Borrower';
@@ -592,6 +610,11 @@
         ratePaymentRow.style.display = 'none';
         state.loanType = null;
         typeChips.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
+        // For money lent: show Pay To (which account receives repayment)
+        // hide Pay From
+        fieldPayFrom.style.display = 'none';
+        fieldPayTo.style.display = '';
+        document.querySelector('label[for="payToAccount"]').textContent = 'Receive Into';
       }
       updatePayoffPreview();
       validate();
@@ -707,7 +730,7 @@
       rate:        state.direction === 'owe' ? (parseFloat(rateInput.value) || 0) : null,
       frequency:   state.direction === 'owe' ? frequencySel.value : null,
       dueDate:     dueDateInput.value,
-      account:     accountSel.value || null,
+      account:     state.direction === 'owe' ? (payFromSel.value || null) : (payToSel.value || null),
       reminder:    state.reminder,
       notes:       document.getElementById('notes').value.trim(),
       createdAt:   new Date().toISOString(),
@@ -754,15 +777,18 @@
       modalBody.style.display = '';
       modalFooter.style.display = '';
       modalSuccess.style.display = 'none';
+      // Default to 'owe' direction — ensure correct field visibility on open
+      fieldPayFrom.style.display = '';
+      fieldPayTo.style.display = 'none';
       nameInput.focus();
     },
     close: closeModal,
     onSave: null,
     onClose: null,
     setAccounts(accounts) {
-      const sel = document.getElementById('account');
       const opts = accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-      sel.innerHTML = `<option value="">Select account…</option>${opts}`;
+      payFromSel.innerHTML = `<option value="">Your account…</option>${opts}`;
+      payToSel.innerHTML   = `<option value="">Your account…</option>${opts}`;
     },
   };
 

@@ -85,7 +85,7 @@
   // ── Auth guard ──
   // Import Supabase client and check session on load.
   // If no valid session, redirect to login page immediately.
-  import { getSession, signOut, onAuthStateChange, saveTransaction, saveLoan, loadLoans, loadAccounts } from './supabase.js';
+  import { getSession, signOut, onAuthStateChange, saveTransaction, saveLoan, loadLoans, loadAccounts, updateAccountTxDelta } from './supabase.js';
 
   const session = await getSession();
   if (!session) { window.location.replace('./login.html'); }
@@ -179,19 +179,32 @@
     }
   }
 
-  // Push a transaction into the accounts page for balance tracking.
-  function applyTransactionToAccounts(tx) {
-    if (accountsFrameWindow && accountsFrameWindow.AccountsPage) {
+  // Write tx_delta directly to Supabase — never route through the accounts
+  // iframe, which may not be mounted when a transaction is saved from Dashboard.
+  // The accounts page reads tx_delta from Supabase on load, so this keeps
+  // balance correct across sessions without needing the iframe to be open.
+  async function applyTransactionToAccounts(tx) {
+    try {
       if (tx.type === 'transfer') {
-        accountsFrameWindow.AccountsPage.applyTransfer(tx.fromAccount, tx.toAccount, tx.amount);
-      } else {
-        accountsFrameWindow.AccountsPage.applyTransaction(tx);
+        if (tx.fromAccount) await updateAccountTxDelta(tx.fromAccount, -tx.amount);
+        if (tx.toAccount)   await updateAccountTxDelta(tx.toAccount,   tx.amount);
+      } else if (tx.type === 'expense' && tx.account) {
+        await updateAccountTxDelta(tx.account, -tx.amount);
+      } else if (tx.type === 'income' && tx.account) {
+        await updateAccountTxDelta(tx.account,  tx.amount);
       }
+      // Also notify the accounts page iframe if it happens to be mounted,
+      // so its in-memory state stays in sync without needing a reload.
+      if (accountsFrameWindow && accountsFrameWindow.AccountsPage) {
+        if (tx.type === 'transfer') {
+          accountsFrameWindow.AccountsPage.applyTransfer(tx.fromAccount, tx.toAccount, tx.amount);
+        } else {
+          accountsFrameWindow.AccountsPage.applyTransaction(tx);
+        }
+      }
+    } catch (err) {
+      console.error('[Vault] Failed to update account balance:', err.message);
     }
-    // Note: no pending queue here. If the accounts page isn't loaded yet,
-    // the balance will catch up from the opening balance + tx history once
-    // Supabase persistence is added. For now, account balances only update
-    // when the Accounts page is loaded in-session.
   }
 
   const pageFrames = {};
@@ -369,7 +382,10 @@
         sendTransactionToDashboard(tx);
         sendTransactionToLedger(tx);
         if (tx.type === 'expense' && tx.category) sendSpendToBudgetPage(tx.category, tx.amount);
-        applyTransactionToAccounts(tx);
+        await applyTransactionToAccounts(tx);
+        // Refresh the canonical account list so the dashboard balance strip
+        // reflects the new tx_delta without requiring a page reload.
+        initAccounts();
       };
       win.TransactionModal.onClose = () => { setTimeout(() => { frame.remove(); modalFrame = null; }, 200); };
     });
