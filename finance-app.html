@@ -85,7 +85,7 @@
   // ── Auth guard ──
   // Import Supabase client and check session on load.
   // If no valid session, redirect to login page immediately.
-  import { getSession, signOut, onAuthStateChange, saveTransaction, saveLoan } from './supabase.js';
+  import { getSession, signOut, onAuthStateChange, saveTransaction, saveLoan, loadLoans } from './supabase.js';
 
   const session = await getSession();
   if (!session) { window.location.replace('./login.html'); }
@@ -453,8 +453,44 @@
 
   loadPage('Dashboard');
 
+  // Load persisted loans from Supabase on app start
+  async function initLoans() {
+    try {
+      const rows = await loadLoans();
+      loans = rows.map(row => ({
+        id:        row.id,
+        direction: row.direction,
+        loanType:  row.loan_type,
+        name:      row.name,
+        party:     row.party,
+        currency:  row.currency,
+        principal: parseFloat(row.principal),
+        balance:   parseFloat(row.balance),
+        payment:   row.payment ? parseFloat(row.payment) : null,
+        rate:      row.rate    ? parseFloat(row.rate)    : null,
+        frequency: row.frequency,
+        dueDate:   row.due_date,
+        reminder:  row.reminder,
+        notes:     row.notes || '',
+      }));
+      renderLoansList();
+    } catch (err) {
+      console.error('[Vault] Failed to load loans:', err.message);
+    }
+  }
+  initLoans();
+
   // Sign out
   document.getElementById('btnSignOut').addEventListener('click', async () => {
+    // Destroy all cached page iframes before signing out so they don't
+    // retain stale data or session state for the next user who signs in.
+    Object.values(pageFrames).forEach(f => f.remove());
+    Object.keys(pageFrames).forEach(k => delete pageFrames[k]);
+    budgetFrameWindow = null;
+    dashboardFrameWindow = null;
+    transactionsFrameWindow = null;
+    accountsFrameWindow = null;
+    canonicalAccounts = [];
     await signOut();
     window.location.replace('./login.html');
   });

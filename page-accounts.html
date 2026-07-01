@@ -282,7 +282,7 @@
 </div>
 
 <script type="module">
-  import { loadAccounts, saveAccount, deleteAccount, saveAdjustment } from './supabase.js';
+  import { loadAccounts, saveAccount, deleteAccount, saveAdjustment, updateAccountTxDelta } from './supabase.js';
 (function () {
 
   /* ════════════════
@@ -662,8 +662,12 @@
       if (!accountId) return;
       const acc = accounts.find(a => a.id === accountId);
       if (!acc) return;
-      if (tx.type === 'income')   acc.txDelta += tx.amount;
-      if (tx.type === 'expense')  acc.txDelta -= tx.amount;
+      const delta = tx.type === 'income' ? tx.amount : -tx.amount;
+      acc.txDelta += delta;
+      // Persist the delta to Supabase so balance survives reload
+      updateAccountTxDelta(acc.id, delta).catch(err =>
+        console.error('[Accounts] txDelta update failed:', err.message)
+      );
       render();
     },
 
@@ -671,8 +675,18 @@
     applyTransfer(fromId, toId, amount) {
       const from = accounts.find(a => a.id === fromId);
       const to   = accounts.find(a => a.id === toId);
-      if (from) from.txDelta -= amount;
-      if (to)   to.txDelta   += amount;
+      if (from) {
+        from.txDelta -= amount;
+        updateAccountTxDelta(from.id, -amount).catch(err =>
+          console.error('[Accounts] txDelta update failed:', err.message)
+        );
+      }
+      if (to) {
+        to.txDelta += amount;
+        updateAccountTxDelta(to.id, amount).catch(err =>
+          console.error('[Accounts] txDelta update failed:', err.message)
+        );
+      }
       render();
     },
 
