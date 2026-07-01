@@ -298,6 +298,20 @@
         <span class="field-hint" id="calcHint">Computed from Quantity × Rate.</span>
       </div>
 
+      <!-- Fee field — buy only. Fee is in the same asset (e.g. 0.1 SOL),
+           deducted from the quantity received. This affects avg cost:
+           net qty = bought qty − fee, and avg cost = total spent ÷ net qty.
+           Optional — defaults to zero, so existing entries with no fee stored
+           are unaffected. Hidden on sell entries since selling doesn't involve
+           an asset deduction from your own position in the same way. -->
+      <div class="field" id="fieldFee">
+        <label for="entryFee" id="entryFeeLabel">
+          Network Fee <span style="color:var(--muted);font-size:10px">(optional, in asset)</span>
+        </label>
+        <input type="number" id="entryFee" placeholder="0.00" min="0" step="any" />
+        <div class="field-hint" id="netQtyHint"></div>
+      </div>
+
       <div class="field">
         <label for="entryDate">Date</label>
         <input type="date" id="entryDate" />
@@ -389,8 +403,15 @@
 
     sorted.forEach(entry => {
       if (entry.side === 'buy') {
+        // Net quantity = what you bought minus the fee deducted by the network.
+        // Total cost stays at qty × rate (you still paid for the full amount),
+        // so avg cost = total paid ÷ units actually received. A 0.1 SOL fee on
+        // a 10 SOL purchase means you received 9.9 SOL but paid for 10 SOL —
+        // your real cost basis per unit is higher than the quoted rate alone.
+        const fee    = entry.fee || 0;
+        const netQty = entry.qty - fee;
         totalCost += entry.qty * entry.rate;
-        totalQty  += entry.qty;
+        totalQty  += netQty;
         avgCost = totalQty > 0 ? totalCost / totalQty : 0;
       } else {
         realizedPnL += (entry.rate - avgCost) * entry.qty;
@@ -552,6 +573,10 @@
   const modeTotalKnown       = document.getElementById('modeTotalKnown');
   const entryDateInput      = document.getElementById('entryDate');
   const entryNotesInput     = document.getElementById('entryNotes');
+  const entryFeeInput       = document.getElementById('entryFee');
+  const entryFeeLabel       = document.getElementById('entryFeeLabel');
+  const fieldFee            = document.getElementById('fieldFee');
+  const netQtyHint          = document.getElementById('netQtyHint');
   const entryModalSave      = document.getElementById('entryModalSave');
 
   /* ════════════════════════════════════════
@@ -619,9 +644,23 @@
 
   // Calculate on blur (leaving the field), not on every keystroke —
   // this is the core fix. Typing "150" no longer recalculates 3 times.
-  entryQtyInput.addEventListener('blur', () => { if (calcMode === 'qty-known') { runCalculation(); validateEntryModal(); } });
-  entryRateInput.addEventListener('blur', () => { runCalculation(); validateEntryModal(); });
-  entryTotalInput.addEventListener('blur', () => { if (calcMode === 'total-known') { runCalculation(); validateEntryModal(); } });
+  entryQtyInput.addEventListener('blur', () => { if (calcMode === 'qty-known') { runCalculation(); validateEntryModal(); } updateNetQtyHint(); });
+  entryRateInput.addEventListener('blur', () => { runCalculation(); validateEntryModal(); updateNetQtyHint(); });
+  entryTotalInput.addEventListener('blur', () => { if (calcMode === 'total-known') { runCalculation(); validateEntryModal(); } updateNetQtyHint(); });
+  entryFeeInput.addEventListener('blur', updateNetQtyHint);
+
+  function updateNetQtyHint() {
+    if (entrySide !== 'buy') { netQtyHint.textContent = ''; return; }
+    const qty = parseFloat(entryQtyInput.value);
+    const fee = parseFloat(entryFeeInput.value) || 0;
+    if (!qty || qty <= 0) { netQtyHint.textContent = ''; return; }
+    const holding = holdings.find(h => h.id === editingHoldingId);
+    const symbol = holding ? holding.symbol : 'units';
+    const net = qty - fee;
+    netQtyHint.textContent = fee > 0
+      ? `Net received: ${net.toLocaleString('en-US',{maximumFractionDigits:8})} ${symbol} (after ${fee.toLocaleString('en-US',{maximumFractionDigits:8})} fee)`
+      : '';
+  }
 
   // Still validate live as the user types (button enable/disable should
   // feel responsive), just don't recompute the locked field mid-keystroke.
@@ -644,8 +683,11 @@
     entryQtyInput.value = '';
     entryRateInput.value = '';
     entryTotalInput.value = '';
+    entryFeeInput.value = '';
     entryNotesInput.value = '';
     entryDateInput.value = new Date().toISOString().split('T')[0];
+    netQtyHint.textContent = '';
+    fieldFee.style.display = '';
 
     setCalcMode('qty-known');
     validateEntryModal();
@@ -665,6 +707,9 @@
     bsTabs.querySelectorAll('.bs-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     entrySide = tab.dataset.side;
+    // Fee only applies to buys — hide on sell to avoid confusion
+    fieldFee.style.display = entrySide === 'buy' ? '' : 'none';
+    if (entrySide === 'sell') { entryFeeInput.value = ''; netQtyHint.textContent = ''; }
     validateEntryModal();
   });
 
@@ -713,6 +758,7 @@
       side: entrySide,
       qty: parseFloat(entryQtyInput.value),
       rate: parseFloat(entryRateInput.value),
+      fee: entrySide === 'buy' ? (parseFloat(entryFeeInput.value) || 0) : 0,
       date: entryDateInput.value,
       notes: entryNotesInput.value.trim(),
     });
@@ -759,7 +805,7 @@
         <span class="entry-side-tag ${entry.side}">${entry.side}</span>
         <div class="entry-detail">
           <div class="entry-qty-rate">${entry.qty.toLocaleString('en-US',{maximumFractionDigits:8})} @ ${holding.currency} ${entry.rate.toLocaleString('en-US',{maximumFractionDigits:8})}</div>
-          <div class="entry-date">${entry.date}${entry.notes ? ' · ' + escHtml(entry.notes) : ''}</div>
+          <div class="entry-date">${entry.date}${entry.fee ? ` · fee: ${entry.fee.toLocaleString('en-US',{maximumFractionDigits:8})} ${holding.symbol}` : ''}${entry.notes ? ' · ' + escHtml(entry.notes) : ''}</div>
         </div>
         <div class="entry-total">${holding.currency} ${(entry.qty * entry.rate).toFixed(2)}</div>
       </div>
