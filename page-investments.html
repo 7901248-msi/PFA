@@ -366,24 +366,11 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import { loadInvestments, saveInvestment, saveInvestmentEntry, deleteInvestment } from './supabase.js';
 (function () {
 
-  let holdings = [
-    {
-      id: 'h1', symbol: 'SOL', name: 'Solana', currency: 'USD',
-      entries: [
-        { id: 'e1', side: 'buy', qty: 12, rate: 145.20, date: '2026-04-10', notes: 'Initial buy' },
-        { id: 'e2', side: 'buy', qty: 5,  rate: 162.80, date: '2026-05-22', notes: '' },
-      ],
-    },
-    {
-      id: 'h2', symbol: 'ETH', name: 'Ethereum', currency: 'USD',
-      entries: [
-        { id: 'e3', side: 'buy', qty: 2.5, rate: 3120.00, date: '2026-03-15', notes: '' },
-      ],
-    },
-  ];
+  let holdings = []; // loaded from Supabase on init
 
   let editingHoldingId = null;
   let deletingHoldingId = null;
@@ -539,17 +526,36 @@
   holdingSymbolInput.addEventListener('input', validateHoldingModal);
   holdingNameInput.addEventListener('input', validateHoldingModal);
 
-  holdingModalSave.addEventListener('click', () => {
+  holdingModalSave.addEventListener('click', async () => {
     if (holdingModalSave.disabled) return;
 
-    const newHolding = {
-      id: 'h' + Date.now(),
-      symbol: holdingSymbolInput.value.trim().toUpperCase(),
-      name: holdingNameInput.value.trim(),
-      currency: holdingCurrencySel.value,
-      entries: [],
-    };
+    holdingModalSave.disabled = true;
+    let newHolding;
+    try {
+      const dbId = await saveInvestment({
+        symbol:   holdingSymbolInput.value.trim().toUpperCase(),
+        name:     holdingNameInput.value.trim(),
+        currency: holdingCurrencySel.value,
+      });
+      newHolding = {
+        id:       dbId,
+        symbol:   holdingSymbolInput.value.trim().toUpperCase(),
+        name:     holdingNameInput.value.trim(),
+        currency: holdingCurrencySel.value,
+        entries:  [],
+      };
+    } catch (err) {
+      console.error('[Investments] Save holding failed:', err.message);
+      newHolding = {
+        id:       'h' + Date.now(),
+        symbol:   holdingSymbolInput.value.trim().toUpperCase(),
+        name:     holdingNameInput.value.trim(),
+        currency: holdingCurrencySel.value,
+        entries:  [],
+      };
+    }
     holdings.push(newHolding);
+    holdingModalSave.disabled = false;
     closeHoldingModal();
     render();
 
@@ -742,7 +748,7 @@
   }
   entryDateInput.addEventListener('input', validateEntryModal);
 
-  entryModalSave.addEventListener('click', () => {
+  entryModalSave.addEventListener('click', async () => {
     // Ensure the locked field reflects the latest typed values even if
     // the user tapped Save without the field ever losing focus (e.g.
     // pressing Enter or tapping Save directly from the keyboard).
@@ -753,16 +759,24 @@
     const holding = holdings.find(h => h.id === editingHoldingId);
     if (!holding) return;
 
-    holding.entries.push({
-      id: 'e' + Date.now(),
-      side: entrySide,
-      qty: parseFloat(entryQtyInput.value),
-      rate: parseFloat(entryRateInput.value),
-      fee: entrySide === 'buy' ? (parseFloat(entryFeeInput.value) || 0) : 0,
-      date: entryDateInput.value,
+    const entry = {
+      side:  entrySide,
+      qty:   parseFloat(entryQtyInput.value),
+      rate:  parseFloat(entryRateInput.value),
+      fee:   entrySide === 'buy' ? (parseFloat(entryFeeInput.value) || 0) : 0,
+      date:  entryDateInput.value,
       notes: entryNotesInput.value.trim(),
-    });
+    };
 
+    try {
+      const dbId = await saveInvestmentEntry(holding.id, entry);
+      entry.id = dbId;
+    } catch (err) {
+      console.error('[Investments] Save entry failed:', err.message);
+      entry.id = 'e' + Date.now();
+    }
+
+    holding.entries.push(entry);
     closeEntryModal();
     render();
 
@@ -834,13 +848,41 @@
   document.getElementById('delCancelBtn').addEventListener('click', () => {
     deleteModalBackdrop.classList.remove('open');
   });
-  document.getElementById('delConfirmBtn').addEventListener('click', () => {
+  document.getElementById('delConfirmBtn').addEventListener('click', async () => {
+    try {
+      await deleteInvestment(deletingHoldingId);
+    } catch (err) {
+      console.error('[Investments] Delete failed:', err.message);
+    }
     holdings = holdings.filter(h => h.id !== deletingHoldingId);
     deleteModalBackdrop.classList.remove('open');
     render();
   });
 
-  render();
+  async function init() {
+    try {
+      const rows = await loadInvestments();
+      holdings = rows.map(row => ({
+        id:       row.id,
+        symbol:   row.symbol,
+        name:     row.name,
+        currency: row.currency,
+        entries:  (row.investment_entries || []).map(e => ({
+          id:   e.id,
+          side: e.side,
+          qty:  parseFloat(e.qty),
+          rate: parseFloat(e.rate),
+          fee:  parseFloat(e.fee || 0),
+          date: e.date,
+          notes: e.notes || '',
+        })),
+      }));
+    } catch (err) {
+      console.error('[Investments] Load failed:', err.message);
+    }
+    render();
+  }
+  init();
 
 })();
 </script>

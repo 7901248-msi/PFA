@@ -599,7 +599,8 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import { loadBudgets, saveBudget, deleteBudget, updateBudgetSpent } from './supabase.js';
 (function () {
 
   /* ════════════════
@@ -607,26 +608,22 @@
      ════════════════ */
   const INCOME = 6500;
 
-  let budgets = [
-    { id: 1, cat: 'Housing',       em: '🏠', limit: 2000, spent: 1850, alert: 80, rollover: false },
-    { id: 2, cat: 'Food',          em: '🛒', limit:  600, spent:  320, alert: 80, rollover: false },
-    { id: 3, cat: 'Dining',        em: '🍕', limit:  300, spent:  248, alert: 80, rollover: true  },
-    { id: 4, cat: 'Transport',     em: '🚗', limit:  350, spent:  320, alert: 90, rollover: false },
-    { id: 5, cat: 'Subscriptions', em: '🎵', limit:  150, spent:  143, alert: 80, rollover: false },
-    { id: 6, cat: 'Shopping',      em: '🛍️', limit:  400, spent:  210, alert: 80, rollover: false },
-    { id: 7, cat: 'Utilities',     em: '⚡', limit:  200, spent:  172, alert: 80, rollover: false },
-    { id: 8, cat: 'Travel',        em: '✈️', limit:  200, spent:  549, alert: 80, rollover: false },
-  ];
+  let budgets = []; // loaded from Supabase on init
 
-  let editingId   = null;  // null = new, number = editing existing
+  let editingId   = null;
   let deletingId  = null;
   let rolloverOn  = false;
-  let currentMonth = new Date(2026, 5, 1); // June 2026
+  let currentMonth = new Date(); // always start on today's actual month
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
 
   // Spend that arrived for a category with no matching budget card.
   // Real data now (was hardcoded mock HTML before) — populated by
   // addSpend() when a transaction's category isn't in `budgets`.
   let unbudgetedSpend = {}; // { 'Medical': 248.00, ... }
+
+  function monthStr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
 
   const CATEGORY_EMOJI = {
     Housing: '🏠', Food: '🛒', Dining: '🍕', Transport: '🚗',
@@ -895,7 +892,7 @@
     saveBtn.disabled = !(limitOk && catOk);
   }
 
-  saveBtn.addEventListener('click', () => {
+  saveBtn.addEventListener('click', async () => {
     const limit = parseFloat(limitInput.value);
     const alert = parseInt(alertSel.value);
 
@@ -904,23 +901,33 @@
       b.limit    = limit;
       b.alert    = alert;
       b.rollover = rolloverOn;
+      try {
+        await saveBudget(b, monthStr(currentMonth));
+      } catch (err) {
+        console.error('[Budgets] Update failed:', err.message);
+      }
     } else {
       const selected = catPicker.querySelector('.cp-btn.selected');
       const cat = selected.dataset.cat;
-      // If this category had unbudgeted spend sitting around, fold it
-      // into the new budget's starting "spent" total instead of losing it.
       const carriedSpend = unbudgetedSpend[cat] || 0;
       delete unbudgetedSpend[cat];
 
-      budgets.push({
-        id:       Date.now(),
+      const newBudget = {
         cat,
         em:       selected.dataset.em,
         limit,
         spent:    carriedSpend,
         alert,
         rollover: rolloverOn,
-      });
+      };
+      try {
+        const dbId = await saveBudget(newBudget, monthStr(currentMonth));
+        newBudget.id = dbId;
+      } catch (err) {
+        console.error('[Budgets] Save failed:', err.message);
+        newBudget.id = Date.now();
+      }
+      budgets.push(newBudget);
     }
 
     closeModal();
@@ -941,7 +948,12 @@
   }
 
   document.getElementById('delCancelBtn').addEventListener('click', closeModal);
-  document.getElementById('delConfirmBtn').addEventListener('click', () => {
+  document.getElementById('delConfirmBtn').addEventListener('click', async () => {
+    try {
+      await deleteBudget(deletingId);
+    } catch (err) {
+      console.error('[Budgets] Delete failed:', err.message);
+    }
     budgets = budgets.filter(b => b.id !== deletingId);
     closeModal();
     render();
@@ -963,9 +975,12 @@
       const b = budgets.find(x => x.cat.toLowerCase() === cat.toLowerCase());
       if (b) {
         b.spent += amount;
+        // Persist the updated spent amount — fire and forget, don't
+        // block the UI for what's essentially a background sync.
+        updateBudgetSpent(b.id, b.spent).catch(err =>
+          console.error('[Budgets] Spent update failed:', err.message)
+        );
       } else {
-        // No budget exists for this category yet — track it separately
-        // so the spend is visible instead of silently disappearing.
         unbudgetedSpend[cat] = (unbudgetedSpend[cat] || 0) + amount;
       }
       render();
@@ -973,10 +988,36 @@
   };
 
   /* ════════════════
-     Init
+     Init — load from Supabase
      ════════════════ */
+  async function loadCurrentMonth() {
+    try {
+      const rows = await loadBudgets(monthStr(currentMonth));
+      budgets = rows.map(row => ({
+        id:       row.id,
+        cat:      row.category,
+        em:       row.emoji || '',
+        limit:    parseFloat(row.limit_amount),
+        spent:    parseFloat(row.spent_amount),
+        alert:    row.alert_threshold,
+        rollover: row.rollover,
+      }));
+    } catch (err) {
+      console.error('[Budgets] Load failed:', err.message);
+      budgets = [];
+    }
+    render();
+  }
+
+  // Month navigation is wired above (prevMonth/nextMonth listeners).
+  // Those listeners update currentMonth and call render() — we extend
+  // them here to also reload from Supabase when the month changes.
+  const origPrevHandler = document.getElementById('prevMonth').onclick;
+  document.getElementById('prevMonth').addEventListener('click', () => loadCurrentMonth());
+  document.getElementById('nextMonth').addEventListener('click', () => loadCurrentMonth());
+
   updateMonthLabel();
-  render();
+  loadCurrentMonth();
 
   // Expose openModal for unbudgeted row buttons
   window.openModal = openModal;
