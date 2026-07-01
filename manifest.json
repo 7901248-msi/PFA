@@ -1,0 +1,27 @@
+{
+  "name": "Vault — Personal Finance",
+  "short_name": "Vault",
+  "description": "Personal finance tracker — transactions, budgets, loans, investments",
+  "start_url": "/PFA/finance-app.html",
+  "scope": "/PFA/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0D1B2A",
+  "theme_color": "#0D1B2A",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "productivity"],
+  "lang": "en"
+}
