@@ -136,6 +136,12 @@
      so the two pages agree on starting state. New transactions are
      pushed in via the public API below as they're saved elsewhere. ── */
   let transactions = []; // loaded from Supabase on init
+  let accountMap = {};  // id -> name, populated by shell via setAccounts()
+
+  function accountName(id) {
+    if (!id) return null;
+    return accountMap[id] || id; // fall back to raw ID if name not yet loaded
+  }
 
   const categoryEmoji = {
     housing: '🏠', food: '🛒', dining: '🍕', transport: '🚗',
@@ -277,6 +283,12 @@
      ledger and the dashboard's recent list stay in sync without either
      one owning the other's DOM directly. */
   window.TransactionsPage = {
+    setAccounts(accounts) {
+      accountMap = {};
+      accounts.forEach(a => { accountMap[a.id] = a.name; });
+      // Re-render so any already-loaded transactions resolve names immediately
+      render();
+    },
     addTransaction(tx) {
       transactions.unshift({
         id: tx.id || ('tx-' + Date.now()),
@@ -284,7 +296,9 @@
         category: tx.category,
         description: tx.description,
         date: tx.date,
-        account: tx.type === 'transfer' ? `${tx.fromAccount} → ${tx.toAccount}` : tx.account,
+        account: tx.type === 'transfer'
+          ? `${accountName(tx.fromAccount) || tx.fromAccount} → ${accountName(tx.toAccount) || tx.toAccount}`
+          : accountName(tx.account) || tx.account,
         amount: tx.amount,
         originalCurrency: tx.originalCurrency || 'MVR',
         originalAmount: tx.originalAmount != null ? tx.originalAmount : tx.amount,
@@ -304,9 +318,9 @@
         originalAmount:   parseFloat(row.original_amount || row.amount),
         description:      row.description,
         date:             row.date,
-        account:          row.account_id || row.from_account_id
-                          ? (row.from_account_id ? `${row.from_account_id} → ${row.to_account_id}` : row.account_id)
-                          : 'Unknown',
+        account:          row.from_account_id
+                          ? `${accountName(row.from_account_id)} → ${accountName(row.to_account_id)}`
+                          : accountName(row.account_id) || 'Unknown account',
         category:         row.category || 'other',
       }));
     } catch (err) {

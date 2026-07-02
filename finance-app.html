@@ -26,7 +26,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Vault" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-180.png" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Vault — Personal Finance</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -189,19 +189,24 @@
   function broadcastAccounts(accounts) {
     canonicalAccounts = accounts;
 
-    // Update transaction modal dropdown if it's currently open
+    // Transaction modal dropdown
     if (modalFrame && modalFrame.contentWindow && modalFrame.contentWindow.TransactionModal) {
       modalFrame.contentWindow.TransactionModal.setAccounts(accounts);
     }
 
-    // Update loan modal dropdown if it's currently open
+    // Loan modal dropdown
     if (loanModalFrame && loanModalFrame.contentWindow && loanModalFrame.contentWindow.LoanModal) {
       loanModalFrame.contentWindow.LoanModal.setAccounts(accounts);
     }
 
-    // Update dashboard account summary strip
+    // Dashboard account summary strip
     if (dashboardFrameWindow && dashboardFrameWindow.DashboardPage) {
       dashboardFrameWindow.DashboardPage.updateAccounts(accounts);
+    }
+
+    // Transactions ledger — resolves account IDs to names in the display
+    if (transactionsFrameWindow && transactionsFrameWindow.TransactionsPage) {
+      transactionsFrameWindow.TransactionsPage.setAccounts(accounts);
     }
   }
 
@@ -290,6 +295,10 @@
         if (pendingLedgerEntries.length && transactionsFrameWindow.TransactionsPage) {
           pendingLedgerEntries.forEach(tx => transactionsFrameWindow.TransactionsPage.addTransaction(tx));
           pendingLedgerEntries = [];
+        }
+        // Push account names so stored UUIDs resolve to display names
+        if (canonicalAccounts.length && transactionsFrameWindow.TransactionsPage) {
+          transactionsFrameWindow.TransactionsPage.setAccounts(canonicalAccounts);
         }
       });
     }

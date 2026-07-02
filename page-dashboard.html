@@ -171,7 +171,10 @@
   // grows only from real entries.
   let sessionIncome = 0;
   let sessionExpenses = 0;
-  let categoryTotals = {}; // { housing: 1850, food: 320, ... } — expenses only
+  let categoryTotals = {};
+  let accountMap = {}; // id -> name, populated via updateAccounts()
+
+  function accountName(id) { return accountMap[id] || id || 'Unknown account'; } // { housing: 1850, food: 320, ... } — expenses only
 
   const CATEGORY_LABELS = {
     housing: 'Housing', food: 'Food', dining: 'Dining', transport: 'Transport',
@@ -261,7 +264,7 @@
       const sign = isCredit ? '+' : isTransfer ? '⇄' : '−';
       const cls  = isCredit ? 'credit' : 'debit';
       const iconBg = isCredit ? 'rgba(74,155,142,0.15)' : isTransfer ? 'rgba(201,168,76,0.12)' : 'rgba(58,80,104,0.4)';
-      const acctLabel = tx.type === 'transfer' ? `${tx.fromAccount} → ${tx.toAccount}` : tx.account || 'Unknown account';
+      const acctLabel = tx.type === 'transfer' ? `${accountName(tx.fromAccount)} → ${accountName(tx.toAccount)}` : accountName(tx.account);
       const origNote = tx.originalCurrency && tx.originalCurrency !== 'MVR'
         ? ` · ${tx.originalCurrency} ${tx.originalAmount.toFixed(2)}`
         : '';
@@ -296,6 +299,10 @@
     addTransaction,
 
     updateAccounts(accounts) {
+      // Update local name map for transaction display
+      accountMap = {};
+      accounts.forEach(a => { accountMap[a.id] = a.name; });
+
       const list = document.getElementById('accountsSummaryList');
       if (!list) return;
       if (!accounts || accounts.length === 0) {
