@@ -1,6 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
+  <!-- PWA: register service worker immediately, independently of app auth logic -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => {
+          reg.addEventListener('updatefound', () => {
+            const w = reg.installing;
+            w.addEventListener('statechange', () => {
+              if (w.state === 'installed' && navigator.serviceWorker.controller) {
+                w.postMessage('SKIP_WAITING');
+              }
+            });
+          });
+        })
+        .catch(err => console.warn('[Vault] SW failed:', err));
+    }
+  </script>
 <meta charset="UTF-8" />
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0D1B2A" />
@@ -195,25 +213,5 @@
   });
 </script>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-          .then(reg => {
-            console.log('[Vault] Service worker registered:', reg.scope);
-            // Check for updates and notify the waiting SW to activate
-            reg.addEventListener('updatefound', () => {
-              const newWorker = reg.installing;
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  newWorker.postMessage('SKIP_WAITING');
-                }
-              });
-            });
-          })
-          .catch(err => console.warn('[Vault] SW registration failed:', err));
-      });
-    }
-  </script>
 </body>
 </html>
