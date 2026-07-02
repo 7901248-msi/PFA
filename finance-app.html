@@ -189,22 +189,23 @@
   function broadcastAccounts(accounts) {
     canonicalAccounts = accounts;
 
-    // Transaction modal dropdown
+    // Transaction modal: loan accounts excluded from income/expense selector
+    // but kept in transfer dropdowns — handled inside the modal's setAccounts()
     if (modalFrame && modalFrame.contentWindow && modalFrame.contentWindow.TransactionModal) {
       modalFrame.contentWindow.TransactionModal.setAccounts(accounts);
     }
 
-    // Loan modal dropdown
+    // Loan modal: all accounts (loan accounts needed for linking)
     if (loanModalFrame && loanModalFrame.contentWindow && loanModalFrame.contentWindow.LoanModal) {
       loanModalFrame.contentWindow.LoanModal.setAccounts(accounts);
     }
 
-    // Dashboard account summary strip
+    // Dashboard account summary strip: all accounts
     if (dashboardFrameWindow && dashboardFrameWindow.DashboardPage) {
       dashboardFrameWindow.DashboardPage.updateAccounts(accounts);
     }
 
-    // Transactions ledger — resolves account IDs to names in the display
+    // Transactions ledger: name resolution for all accounts
     if (transactionsFrameWindow && transactionsFrameWindow.TransactionsPage) {
       transactionsFrameWindow.TransactionsPage.setAccounts(accounts);
     }

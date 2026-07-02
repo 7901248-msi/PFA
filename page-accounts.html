@@ -21,8 +21,10 @@
   .account-card.savings::before    { background: var(--sage); }
   .account-card.investment::before { background: var(--gold); }
   .account-card.credit::before     { background: var(--red); }
+  .account-card.loan::before       { background: var(--red); }
   .account-card.cash::before       { background: #7EB87E; }
   .account-card.wallet::before     { background: #9B6B9E; }
+  .account-card.prepaid::before    { background: #5B8DD9; }
   .account-card.other::before      { background: var(--muted); }
 
   .account-card:active { border-color: var(--muted); }
@@ -177,7 +179,18 @@
       <div class="field-row-2">
         <div class="field">
           <label for="accType">Type</label>
-          <input type="text" id="accType" placeholder="e.g. Savings, Crypto…" autocomplete="off" />
+          <select id="accType">
+            <option value="Checking">Checking</option>
+            <option value="Savings">Savings</option>
+            <option value="Credit Card">Credit Card</option>
+            <option value="Prepaid">Prepaid</option>
+            <option value="Current">Current</option>
+            <option value="Loan">Loan</option>
+            <option value="Investment">Investment</option>
+            <option value="Cash">Cash</option>
+            <option value="Wallet">Wallet</option>
+            <option value="Other">Other</option>
+          </select>
         </div>
         <div class="field">
           <label for="accCurrency">Currency</label>
@@ -188,9 +201,9 @@
         </div>
       </div>
       <div class="field" id="fieldOpeningBalance">
-        <label for="openingBalance">Opening Balance</label>
-        <input type="number" id="openingBalance" placeholder="0.00" step="any" />
-        <span class="field-hint">Current balance if this account already exists, or 0 for a new account.</span>
+        <label for="openingBalance" id="openingBalanceLabel">Opening Balance</label>
+        <input type="number" id="openingBalance" placeholder="0.00" step="any" min="0" />
+        <span class="field-hint" id="openingBalanceHint">Current balance if this account already exists, or 0 for a new account.</span>
       </div>
       <div class="field">
         <label for="accNotes">Notes <span style="color:var(--muted);font-size:10px">(optional)</span></label>
@@ -312,12 +325,14 @@
 
   function typeClass(type) {
     const t = (type || '').toLowerCase();
-    if (t.includes('saving')) return 'savings';
+    if (t === 'loan')                              return 'loan';
+    if (t.includes('saving'))                      return 'savings';
     if (t.includes('invest') || t.includes('broker')) return 'investment';
     if (t.includes('credit') || t.includes('card')) return 'credit';
-    if (t.includes('cash')) return 'cash';
+    if (t.includes('cash'))                        return 'cash';
     if (t.includes('wallet') || t.includes('crypto')) return 'wallet';
     if (t.includes('check') || t.includes('current')) return 'checking';
+    if (t.includes('prepaid'))                     return 'prepaid';
     return 'other';
   }
 
@@ -425,18 +440,19 @@
     if (id) {
       const acc = accounts.find(a => a.id === id);
       accNameInput.value     = acc.name;
-      accTypeInput.value     = acc.type || '';
+      accTypeInput.value     = acc.type || 'Checking';
       accCurrencySel.value   = acc.currency;
       accNotesInput.value    = acc.notes || '';
       openingBalInput.value  = acc.openingBalance;
     } else {
       accNameInput.value = '';
-      accTypeInput.value = '';
+      accTypeInput.value = 'Checking';
       accCurrencySel.value = 'MVR';
       openingBalInput.value = '0';
       accNotesInput.value = '';
     }
     validateAccountModal();
+    updateTypeContext();
     accountModalBackdrop.classList.add('open');
     accNameInput.focus();
   }
@@ -451,16 +467,38 @@
   }
   accNameInput.addEventListener('input', validateAccountModal);
 
+  // Update opening balance label/hint based on selected account type
+  function updateTypeContext() {
+    const isLoan = accTypeInput.value === 'Loan';
+    const label  = document.getElementById('openingBalanceLabel');
+    const hint   = document.getElementById('openingBalanceHint');
+    if (isLoan) {
+      label.textContent = 'Loan Amount (positive number)';
+      hint.textContent  = 'Enter the original loan amount — it will be stored as a deficit (negative balance).';
+    } else {
+      label.textContent = 'Opening Balance';
+      hint.textContent  = 'Current balance if this account already exists, or 0 for a new account.';
+    }
+  }
+  accTypeInput.addEventListener('change', updateTypeContext);
+
   accountModalSave.addEventListener('click', async () => {
     if (accountModalSave.disabled) return;
     accountModalSave.disabled = true;
 
+    const rawBalance = parseFloat(openingBalInput.value) || 0;
+    const isLoan = accTypeInput.value === 'Loan';
+
     const newAcc = {
       id:             editingId || null,
       name:           accNameInput.value.trim(),
-      type:           accTypeInput.value.trim(),
+      type:           accTypeInput.value,
       currency:       accCurrencySel.value,
-      openingBalance: parseFloat(openingBalInput.value) || 0,
+      // Loan accounts store the balance as negative — the user enters
+      // the loan amount as a positive number and we negate it here so
+      // the account correctly shows as a deficit that reduces toward zero
+      // as payments are made via transfers.
+      openingBalance: isLoan ? -Math.abs(rawBalance) : rawBalance,
       txDelta:        0,
       adjustments:    [],
       notes:          accNotesInput.value.trim(),

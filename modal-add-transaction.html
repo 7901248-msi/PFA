@@ -982,13 +982,21 @@
     onClose: null,
 
     // Called by the shell whenever the account list changes.
-    // Populates all three account selects (single account, transfer from, transfer to)
-    // with the current canonical account list from the shell's registry.
+    // Loan accounts are excluded from the income/expense selector
+    // (you can't log an expense directly against a loan account) but
+    // ARE included in the transfer dropdowns (payments go savings → loan).
     setAccounts(accounts) {
-      const opts = accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-      document.getElementById('account').innerHTML = `<option value="">Select account…</option>${opts}`;
-      document.getElementById('transferFrom').innerHTML = `<option value="">From…</option>${opts}`;
-      document.getElementById('transferTo').innerHTML = `<option value="">To…</option>${opts}`;
+      const nonLoanAccounts = accounts.filter(a => a.type !== 'Loan');
+      const allAccounts     = accounts;
+
+      const toOpts = (list) => list.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+
+      document.getElementById('account').innerHTML =
+        `<option value="">Select account…</option>${toOpts(nonLoanAccounts)}`;
+      document.getElementById('transferFrom').innerHTML =
+        `<option value="">From…</option>${toOpts(allAccounts)}`;
+      document.getElementById('transferTo').innerHTML =
+        `<option value="">To…</option>${toOpts(allAccounts)}`;
     },
   };
 
