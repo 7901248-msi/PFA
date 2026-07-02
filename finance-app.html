@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-  <link rel="manifest" href="/PFA/manifest.json" />
+  <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0D1B2A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Vault" />
-  <link rel="apple-touch-icon" href="/PFA/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Vault — Personal Finance</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -553,7 +553,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/PFA/service-worker.js')
+        navigator.serviceWorker.register('/service-worker.js')
           .then(reg => {
             console.log('[Vault] Service worker registered:', reg.scope);
             // Check for updates and notify the waiting SW to activate
